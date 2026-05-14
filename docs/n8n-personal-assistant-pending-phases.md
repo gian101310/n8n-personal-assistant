@@ -70,13 +70,21 @@ Current:
 - `assistant.recurring_expenses`
 - `assistant.recurring_tasks`
 - `assistant.memories`
+- `assistant.cards`
 - pgvector enabled.
+- Default currency is `AED`.
+- Default card directory:
+  - debit: ADCB, ENBD, DIB, RAK, CBD
+  - credit: ADCB, ENBD, DIB, RAK, TABBY
+- New card names saved on expenses are auto-added to the card directory.
+- Recurring payment placeholders exist for ADCB, ENBD, DIB, RAK, TABBY, and ETISALAT.
+- Budget tracker is saved as the next dashboard/assistant suggestion.
 
 Needed:
 
-- Store common cards/accounts.
 - Store default category preferences.
-- Store recurring bills and subscriptions.
+- Build recurring-payment generation workflow.
+- Build budget tracker.
 - Add semantic memory with embeddings.
 - Retrieve memory before OpenAI parsing so it can infer defaults.
 
@@ -110,26 +118,22 @@ Recommended after memory works.
 
 ## Phase 7 - Proper Dashboard On Vercel
 
-Status: local proof-of-concept exists.
+Status: deployed private dashboard exists.
 
 Current:
 
-- Local dashboard at `http://127.0.0.1:3000`.
+- Live Vercel dashboard.
+- Admin password login.
 - Reads Supabase server-side.
-- Shows metrics, recent expenses, tasks, logs, category/card breakdown.
+- Shows KPIs, filters, monthly chart, expenses, tasks, logs, category/card breakdown, and card directory.
 
 Needed:
 
-- Proper Vercel app.
-- Authentication/login.
-- KPI cards.
-- Monthly expense chart.
-- Date/category/card filters.
-- Expense tracker table with edit/delete.
+- Expense edit modal.
+- Budget tracker.
 - Task dashboard.
 - Receipt review queue.
 - AI insights page.
-- Mobile-first layout.
 
 ## Phase 8 - Production Hosting
 

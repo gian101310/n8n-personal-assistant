@@ -107,6 +107,36 @@ function MonthlyChart({ rows }: { rows: { label: string; total: number }[] }) {
   );
 }
 
+function CardDirectory({ cards }: { cards: { id: string; name: string; kind: string; issuer: string | null; source: string }[] }) {
+  const groups = [
+    { key: "debit", label: "Debit Cards" },
+    { key: "credit", label: "Credit Cards" },
+    { key: "other", label: "Auto Added" },
+  ];
+
+  return (
+    <div className="cardDirectory">
+      {groups.map((group) => {
+        const rows = cards.filter((card) => card.kind === group.key);
+        if (!rows.length) return null;
+
+        return (
+          <div className="cardGroup" key={group.key}>
+            <h3>{group.label}</h3>
+            <div>
+              {rows.map((card) => (
+                <span className="cardPill" key={card.id} title={`${card.source}${card.issuer ? ` - ${card.issuer}` : ""}`}>
+                  {card.name}
+                </span>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default async function DashboardPage({ searchParams }: DashboardPageProps) {
   const filters = parseDashboardFilters((await searchParams) || {});
   const data = await getDashboardData(filters);
@@ -365,6 +395,17 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
               ))}
               {data.cardBreakdown.length === 0 ? <p className="empty block">No card data.</p> : null}
             </div>
+          </section>
+
+          <section className="panel">
+            <div className="panelHeader">
+              <div>
+                <h2>Card Directory</h2>
+                <p>Saved card names used by Telegram and filters</p>
+              </div>
+              <span>{data.cards.length}</span>
+            </div>
+            <CardDirectory cards={data.cards} />
           </section>
 
           <section className="panel span2" id="activity">

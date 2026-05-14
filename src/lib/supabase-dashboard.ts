@@ -1,5 +1,6 @@
 import "server-only";
 import type {
+  AssistantCard,
   BreakdownRow,
   DashboardData,
   DashboardMetrics,
@@ -136,10 +137,10 @@ function uniqueSorted(values: Array<string | null | undefined>) {
   );
 }
 
-function buildFilterOptions(expenses: Expense[]): FilterOptions {
+function buildFilterOptions(expenses: Expense[], cards: AssistantCard[]): FilterOptions {
   return {
     categories: uniqueSorted(expenses.map((expense) => expense.category)),
-    cards: uniqueSorted(expenses.map((expense) => expense.card || expense.payment_method)),
+    cards: uniqueSorted([...expenses.map((expense) => expense.card || expense.payment_method), ...cards.map((card) => card.name)]),
     merchants: uniqueSorted(expenses.map((expense) => expense.merchant)).slice(0, 30),
   };
 }
@@ -157,10 +158,11 @@ function enrichMetrics(base: DashboardMetrics, expenses: Expense[], categoryBrea
 }
 
 export async function getDashboardData(filters: DashboardFilters): Promise<DashboardData> {
-  const [metricsRows, expenses, allExpenses, tasks, logs] = await Promise.all([
+  const [metricsRows, expenses, allExpenses, cards, tasks, logs] = await Promise.all([
     supabaseGet<DashboardMetrics[]>("assistant_dashboard_metrics?select=*"),
     supabaseGet<Expense[]>(buildExpenseQuery(filters, 100)),
     supabaseGet<Expense[]>("assistant_expenses?select=*&order=expense_date.desc,created_at.desc&limit=500"),
+    supabaseGet<AssistantCard[]>("assistant_cards?select=*&active=eq.true&order=kind.asc,name.asc"),
     supabaseGet<Task[]>("assistant_tasks?select=*&status=eq.open&order=due_at.asc.nullslast,created_at.desc&limit=18"),
     supabaseGet<LogRow[]>(
       "assistant_logs?select=id,workflow,raw_input,intent,status,message,execution_source,created_at&order=created_at.desc&limit=18",
@@ -176,8 +178,9 @@ export async function getDashboardData(filters: DashboardFilters): Promise<Dashb
     tasks,
     categoryBreakdown,
     cardBreakdown,
+    cards,
     monthlySpend: buildMonthlySpend(allExpenses),
-    filterOptions: buildFilterOptions(allExpenses),
+    filterOptions: buildFilterOptions(allExpenses, cards),
     logs,
   };
 }

@@ -151,6 +151,10 @@ const systemPrompt = [
   "Use Asia/Dubai timezone. Today's date/time is " + createdAt + ".",
   "Default currency is AED. For unknown values, use empty strings, category Other, amount 0, and confidence below 0.6.",
   "If the user mentions a specific card or account, put the broad method in payment_method and the specific name in card. Examples: payment_method card, card ADCB Visa; payment_method cash, card empty string.",
+  "Known debit cards: ADCB Debit, ENBD Debit, DIB Debit, RAK Debit, CBD Debit.",
+  "Known credit cards: ADCB Credit, ENBD Credit, DIB Credit, RAK Credit, TABBY Credit.",
+  "Recurring payment names: ADCB Credit Card Payment, ENBD Credit Card Payment, DIB Credit Card Payment, RAK Credit Card Payment, TABBY Payment, ETISALAT Payment.",
+  "If the user says a bank plus debit or credit, normalize card to the matching known card name. If a new card name is mentioned, preserve it exactly in card so it can be auto-added later.",
   "For receipt photos, extract the most likely merchant, date, total amount, currency, and category.",
   "For reminders, resolve relative dates such as tomorrow morning into ISO 8601 with timezone offset when possible.",
   "For task completion messages like 'done buy printer ink', set intent task_done and task_match_text to the task phrase."

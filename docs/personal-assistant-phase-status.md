@@ -39,6 +39,16 @@ Created in `rtailtradr-maker's Project`:
   - `assistant_recurring_tasks`
   - `assistant_memories`
   - `assistant_weekly_reviews`
+  - `assistant_cards`
+
+Defaults:
+
+- default currency: `AED`
+- debit cards: `ADCB Debit`, `ENBD Debit`, `DIB Debit`, `RAK Debit`, `CBD Debit`
+- credit cards: `ADCB Credit`, `ENBD Credit`, `DIB Credit`, `RAK Credit`, `TABBY Credit`
+- recurring payment placeholders: ADCB, ENBD, DIB, RAK, TABBY, ETISALAT
+- budget tracker is saved as a suggested next feature
+- new card names saved on expenses auto-add to the card directory
 
 Imported but not yet active:
 
@@ -55,23 +65,25 @@ Manual activation step:
 
 ## Dashboard
 
-Built locally:
+Built and deployed:
 
-- Next.js dashboard at `http://127.0.0.1:3000`
+- Vercel dashboard at `https://n8n-personal-assistant-chi.vercel.app`
 - Server-side Supabase reads using `.env`
-- Today metrics, recent expenses, open tasks, category/card breakdowns, and recent logs
-- Task completion action from the dashboard
+- Admin password login
+- KPI cards, filters, monthly chart, expense table, task list, logs, card breakdown, and card directory
+- Task completion and expense delete actions from the dashboard
 
 Verification:
 
 - `npm test -- --run`
 - `npm run build`
-- local dashboard HTTP check returned `200 OK`
+- live login redirect and authenticated dashboard checks
 
 Still pending:
 
 - Live verification of Telegram voice with OpenAI transcription.
-- Hosted dashboard deployment.
+- Expense edit modal.
+- Budget tracker.
 
 ## Voice Support
 

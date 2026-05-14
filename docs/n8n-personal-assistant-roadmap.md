@@ -35,10 +35,15 @@ Done:
 - Supabase `assistant` schema created in `rtailtradr-maker's Project`.
 - Public REST API views created for n8n service-role access.
 - Supabase-backed n8n workflow versions imported as inactive workflows.
+- Supabase card directory added with debit and credit defaults.
+- Default currency set to `AED`.
+- New cards from expenses auto-add to the card directory.
+- Recurring payment placeholders added for credit cards and ETISALAT.
 
 Prepared:
 
 - Supabase SQL schema in `docs/supabase-schema.sql`.
+- Budget tracker saved as a suggested next feature.
 
 Still manual/future:
 
@@ -80,12 +85,15 @@ Still manual/future:
 
 ## Phase 8 - Dashboard
 
-Prepared:
+Done:
 
 - Dashboard spec in `docs/dashboard-spec.md`.
+- Private Vercel dashboard with admin login.
+- KPI cards, date/category/card filters, monthly chart, expense table, task list, logs, card breakdown, and card directory.
 
 Still manual/future:
 
-- Create dashboard app.
-- Connect Supabase.
-- Deploy to Vercel or run locally.
+- Add editable expense rows.
+- Add budget tracker.
+- Add receipt review queue.
+- Add AI insights page.

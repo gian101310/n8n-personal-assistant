@@ -62,6 +62,17 @@ export type MonthlySpend = {
   total: number;
 };
 
+export type AssistantCard = {
+  id: string;
+  name: string;
+  kind: "debit" | "credit" | "other";
+  issuer: string | null;
+  active: boolean;
+  source: string;
+  notes: string | null;
+  created_at: string;
+};
+
 export type FilterOptions = {
   categories: string[];
   cards: string[];
@@ -74,6 +85,7 @@ export type DashboardData = {
   tasks: Task[];
   categoryBreakdown: BreakdownRow[];
   cardBreakdown: BreakdownRow[];
+  cards: AssistantCard[];
   monthlySpend: MonthlySpend[];
   filterOptions: FilterOptions;
   logs: LogRow[];

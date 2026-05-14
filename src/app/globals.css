@@ -472,7 +472,8 @@ td small {
 
 .taskList,
 .bars,
-.logList {
+.logList,
+.cardDirectory {
   padding: 10px;
 }
 
@@ -504,6 +505,44 @@ td small {
 
 .barRow b {
   white-space: nowrap;
+}
+
+.cardDirectory {
+  display: grid;
+  gap: 10px;
+}
+
+.cardGroup {
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+
+.cardGroup h3 {
+  margin: 0 0 10px;
+  color: var(--soft);
+  font-size: 11px;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.cardGroup div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.cardPill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--text);
+  background: var(--surface-3);
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .logItem {

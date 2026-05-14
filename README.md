@@ -1,6 +1,6 @@
 # n8n Personal Assistant
 
-Local Telegram personal assistant powered by n8n, OpenAI, Supabase, and a local Next.js dashboard.
+Telegram personal assistant powered by n8n, OpenAI, Supabase, and a private Next.js/Vercel dashboard.
 
 ## Current Status
 
@@ -12,13 +12,16 @@ The core assistant is working:
 - Daily and weekly summary workflows.
 - Reminder sender.
 - Basic voice transcription path.
-- Local dashboard proof-of-concept.
+- Private Vercel dashboard with admin login.
 - Pending confirmation flow with `confirm` / `cancel`.
+- Card directory defaults and auto-add for new card names.
+- AED default currency.
 
 ## Important URLs
 
 - n8n editor: `http://localhost:5678`
 - Local dashboard: `http://127.0.0.1:3000`
+- Live dashboard: `https://n8n-personal-assistant-chi.vercel.app`
 - Supabase project: `https://supabase.com/dashboard/project/uxdueryjbfzfvyznxgax`
 - Current ngrok URL is managed by `start-n8n-with-ngrok.ps1`
 
@@ -43,6 +46,8 @@ Required:
 ```env
 SUPABASE_URL=https://uxdueryjbfzfvyznxgax.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=...
+DASHBOARD_ADMIN_PASSWORD=...
+DASHBOARD_SESSION_TOKEN=...
 ```
 
 Do not paste the service-role key into chat or commit it.
@@ -63,4 +68,3 @@ Do not paste the service-role key into chat or commit it.
 - `workflows/` - exported n8n workflows and snapshots.
 - `src/app/` - local Next.js dashboard proof-of-concept.
 - `scripts/` - workflow generation/patch scripts.
-
