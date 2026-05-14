@@ -1,6 +1,6 @@
 [
   {
-    "updatedAt": "2026-05-14T21:09:35.891Z",
+    "updatedAt": "2026-05-14T21:20:46.556Z",
     "createdAt": "2026-05-13T22:04:17.679Z",
     "id": "telegram-personal-assistant-inbox-budget-commands",
     "name": "Telegram Personal Assistant - Inbox Budget Commands",
@@ -1967,6 +1967,19 @@
           1940,
           -120
         ]
+      },
+      {
+        "parameters": {
+          "jsCode": "const item = $input.first();\nconst json = { ...(item.json || {}) };\nconst binary = item.binary || {};\n\nif (json.source !== \"telegram_photo\") {\n  return [{ json, binary }];\n}\n\nconst key = json.binaryKey || Object.keys(binary)[0] || \"\";\nconst image = key ? binary[key] : null;\n\nif (!key || !image) {\n  return [{\n    json: {\n      ...json,\n      valid: false,\n      confirmation: \"I received the receipt photo, but could not read the image. Please resend it as a photo.\"\n    },\n    binary\n  }];\n}\n\nlet buffer;\ntry {\n  // n8n filesystem binary mode stores a file reference, not inline base64.\n  buffer = await this.helpers.getBinaryDataBuffer(0, key);\n} catch (error) {\n  return [{\n    json: {\n      ...json,\n      valid: false,\n      confirmation: \"I received the receipt photo, but could not load the image file. Please resend it.\"\n    },\n    binary\n  }];\n}\n\nconst mimeType = image.mimeType || json.mediaMimeType || \"image/jpeg\";\nconst imageUrl = \"data:\" + mimeType + \";base64,\" + buffer.toString(\"base64\");\nconst openaiBody = JSON.parse(JSON.stringify(json.openaiBody));\nconst userMessage = openaiBody.input.find((entry) => entry.role === \"user\");\nconst content = userMessage?.content || [];\nconst existingImage = content.find((entry) => entry.type === \"input_image\");\nif (existingImage) {\n  existingImage.image_url = imageUrl;\n} else {\n  content.push({ type: \"input_image\", image_url: imageUrl });\n}\n\nreturn [{ json: { ...json, mediaMimeType: mimeType, openaiBody }, binary }];"
+        },
+        "id": "assistant-prepare-photo-image",
+        "name": "Prepare Photo Image",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          860,
+          420
+        ]
       }
     ],
     "connections": {
@@ -2173,7 +2186,7 @@
           ],
           [
             {
-              "node": "Read Parser Context",
+              "node": "Prepare Photo Image",
               "type": "main",
               "index": 0
             }
@@ -2870,6 +2883,17 @@
           [
             {
               "node": "Mark Pending Confirmed",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Prepare Photo Image": {
+        "main": [
+          [
+            {
+              "node": "Read Parser Context",
               "type": "main",
               "index": 0
             }

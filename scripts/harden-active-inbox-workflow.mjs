@@ -328,6 +328,57 @@ if (percent >= 1) {
 
 return [{ json: { ...base, monthlySpend: spend, monthlyBudget: limit, confirmation: (base.confirmation || "Confirmed expense.") + warning } }];`;
 
+const preparePhotoImageCode = String.raw`const item = $input.first();
+const json = { ...(item.json || {}) };
+const binary = item.binary || {};
+
+if (json.source !== "telegram_photo") {
+  return [{ json, binary }];
+}
+
+const key = json.binaryKey || Object.keys(binary)[0] || "";
+const image = key ? binary[key] : null;
+
+if (!key || !image) {
+  return [{
+    json: {
+      ...json,
+      valid: false,
+      confirmation: "I received the receipt photo, but could not read the image. Please resend it as a photo."
+    },
+    binary
+  }];
+}
+
+let buffer;
+try {
+  // n8n filesystem binary mode stores a file reference, not inline base64.
+  buffer = await this.helpers.getBinaryDataBuffer(0, key);
+} catch (error) {
+  return [{
+    json: {
+      ...json,
+      valid: false,
+      confirmation: "I received the receipt photo, but could not load the image file. Please resend it."
+    },
+    binary
+  }];
+}
+
+const mimeType = image.mimeType || json.mediaMimeType || "image/jpeg";
+const imageUrl = "data:" + mimeType + ";base64," + buffer.toString("base64");
+const openaiBody = JSON.parse(JSON.stringify(json.openaiBody));
+const userMessage = openaiBody.input.find((entry) => entry.role === "user");
+const content = userMessage?.content || [];
+const existingImage = content.find((entry) => entry.type === "input_image");
+if (existingImage) {
+  existingImage.image_url = imageUrl;
+} else {
+  content.push({ type: "input_image", image_url: imageUrl });
+}
+
+return [{ json: { ...json, mediaMimeType: mimeType, openaiBody }, binary }];`;
+
 for (const workflowPath of workflowPaths) {
   const workflow = readWorkflow(workflowPath);
 
@@ -400,6 +451,13 @@ return [{
     "Reply Duplicate Telegram Update",
     [760, 40],
     "I already processed that Telegram update.",
+  ));
+
+  upsertNode(workflow, codeNode(
+    "assistant-prepare-photo-image",
+    "Prepare Photo Image",
+    [860, 420],
+    preparePhotoImageCode,
   ));
 
   upsertNode(workflow, httpNode(
@@ -500,6 +558,10 @@ return [{
   };
   workflow.connections["Append Confirmed Budget Warning"] = {
     main: [[{ node: "Mark Pending Confirmed", type: "main", index: 0 }]],
+  };
+  workflow.connections["Route Voice"].main[1] = [{ node: "Prepare Photo Image", type: "main", index: 0 }];
+  workflow.connections["Prepare Photo Image"] = {
+    main: [[{ node: "Read Parser Context", type: "main", index: 0 }]],
   };
 
   workflow.updatedAt = new Date().toISOString();
