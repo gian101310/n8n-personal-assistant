@@ -1,5 +1,5 @@
 export type BudgetCommand =
-  | { command: "set"; category: string; amount: number }
+  | { command: "set"; category: string; amount: number; period?: "monthly" | "weekly" }
   | { command: "delete"; category: string }
   | { command: "list" }
   | { command: "" };
@@ -9,7 +9,9 @@ function cleanCategory(value: string) {
 }
 
 function parseAmount(value: string) {
-  const amount = Number(value.replace(/,/g, ""));
+  const cleaned = value.toLowerCase().replace(/,/g, "").replace(/\s*aed\s*$/i, "").trim();
+  const kMatch = cleaned.match(/^(\d+(?:\.\d+)?)\s*k$/);
+  const amount = kMatch ? Number(kMatch[1]) * 1000 : Number(cleaned);
   return Number.isFinite(amount) && amount > 0 ? amount : 0;
 }
 
@@ -27,14 +29,19 @@ export function parseBudgetCommand(input: string): BudgetCommand {
   }
 
   const setMatch =
-    text.match(/^(?:set|make)\s+(.+?)\s+budget\s+(?:to\s+)?(?:aed\s*)?([\d,]+(?:\.\d{1,2})?)$/i) ||
-    text.match(/^budget\s+(.+?)\s+(?:to\s+)?(?:aed\s*)?([\d,]+(?:\.\d{1,2})?)$/i) ||
-    text.match(/^(.+?)\s+budget\s+(?:is\s+|=|to\s+)?(?:aed\s*)?([\d,]+(?:\.\d{1,2})?)$/i);
+    text.match(/^(?:set|make)\s+(.+?)\s+budget\s+(?:to\s+)?(?:aed\s*)?([\d,]+(?:\.\d{1,2})?\s*k?|\d+(?:\.\d+)?k|[\d,]+(?:\.\d{1,2})?\s*aed)(?:\s+(weekly|monthly))?$/i) ||
+    text.match(/^budget\s+(.+?)\s+(?:to\s+)?(?:aed\s*)?([\d,]+(?:\.\d{1,2})?\s*k?|\d+(?:\.\d+)?k|[\d,]+(?:\.\d{1,2})?\s*aed)(?:\s+(weekly|monthly))?$/i) ||
+    text.match(/^(.+?)\s+budget\s+(?:is\s+|=|to\s+)?(?:aed\s*)?([\d,]+(?:\.\d{1,2})?\s*k?|\d+(?:\.\d+)?k|[\d,]+(?:\.\d{1,2})?\s*aed)(?:\s+(weekly|monthly))?$/i) ||
+    text.match(/^(.+?)\s+limit\s+(?:aed\s*)?([\d,]+(?:\.\d{1,2})?\s*k?|\d+(?:\.\d+)?k|[\d,]+(?:\.\d{1,2})?\s*aed)(?:\s+(weekly|monthly))?$/i) ||
+    text.match(/^set\s+(weekly|monthly)\s+(.+?)\s+cap\s+(?:aed\s*)?([\d,]+(?:\.\d{1,2})?\s*k?|\d+(?:\.\d+)?k|[\d,]+(?:\.\d{1,2})?\s*aed)$/i) ||
+    text.match(/^(.+?)\s+(?:aed\s*)?([\d,]+(?:\.\d{1,2})?\s*k?|\d+(?:\.\d+)?k|[\d,]+(?:\.\d{1,2})?\s*aed)(?:\s+(weekly|monthly))?$/i);
 
   if (setMatch) {
-    const category = cleanCategory(setMatch[1] || "");
-    const amount = parseAmount(setMatch[2] || "");
-    return category && amount ? { command: "set", category, amount } : { command: "" };
+    const periodFirst = setMatch[1] === "weekly" || setMatch[1] === "monthly";
+    const period = (periodFirst ? setMatch[1] : setMatch[3]) as "weekly" | "monthly" | undefined;
+    const category = cleanCategory((periodFirst ? setMatch[2] : setMatch[1]) || "");
+    const amount = parseAmount((periodFirst ? setMatch[3] : setMatch[2]) || "");
+    return category && amount ? { command: "set", category, amount, period: period || "monthly" } : { command: "" };
   }
 
   return { command: "" };

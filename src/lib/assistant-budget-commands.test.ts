@@ -7,11 +7,43 @@ describe("assistant budget commands", () => {
       command: "set",
       category: "Food",
       amount: 1200,
+      period: "monthly",
     });
     expect(parseBudgetCommand("budget Groceries AED 800")).toEqual({
       command: "set",
       category: "Groceries",
       amount: 800,
+      period: "monthly",
+    });
+    expect(parseBudgetCommand("groceries 2k")).toEqual({
+      command: "set",
+      category: "groceries",
+      amount: 2000,
+      period: "monthly",
+    });
+    expect(parseBudgetCommand("food limit 300 weekly")).toEqual({
+      command: "set",
+      category: "food",
+      amount: 300,
+      period: "weekly",
+    });
+    expect(parseBudgetCommand("set monthly dining cap 1500")).toEqual({
+      command: "set",
+      category: "dining",
+      amount: 1500,
+      period: "monthly",
+    });
+    expect(parseBudgetCommand("entertainment 1500aed")).toEqual({
+      command: "set",
+      category: "entertainment",
+      amount: 1500,
+      period: "monthly",
+    });
+    expect(parseBudgetCommand("budget food 2,000")).toEqual({
+      command: "set",
+      category: "food",
+      amount: 2000,
+      period: "monthly",
     });
   });
 

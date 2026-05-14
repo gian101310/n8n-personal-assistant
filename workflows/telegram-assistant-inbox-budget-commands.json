@@ -1,6 +1,6 @@
 [
   {
-    "updatedAt": "2026-05-14T16:39:36.386Z",
+    "updatedAt": "2026-05-14T20:23:50.506Z",
     "createdAt": "2026-05-13T22:04:17.679Z",
     "id": "telegram-personal-assistant-inbox-budget-commands",
     "name": "Telegram Personal Assistant - Inbox Budget Commands",
@@ -37,7 +37,7 @@
       },
       {
         "parameters": {
-          "jsCode": "const item = $input.first();\nconst update = item.json || {};\nconst callback = update.callback_query || null;\nconst message = callback?.message || update.message || update.edited_message || {};\nconst chatId = message.chat?.id ? String(message.chat.id) : \"\";\nconst text = callback?.data || message.text || message.caption || \"\";\nconst isCallback = Boolean(callback?.id);\nconst callbackQueryId = callback?.id || \"\";\nconst lowerText = String(text || \"\").trim().toLowerCase();\nfunction cleanMemoryValue(value) {\n  return String(value || \"\").trim().replace(/^[:\\-\\s]+/, \"\").replace(/[?.!\\s]+$/, \"\").trim();\n}\nfunction parseMemoryCommand(value) {\n  const textValue = String(value || \"\").trim();\n  if (!textValue) return { command: \"\" };\n  if (/^(what do you remember|what have i told you to remember|show memories|list memories|list my memories)\\??$/i.test(textValue)\n    || (/^remind me/i.test(textValue) && /\\b(notes? to remember|told you.*remember|everything.*remember)\\b/i.test(textValue))) {\n    return { command: \"recall\" };\n  }\n  const forgetMatch = textValue.match(/^(?:forget|delete memory|remove memory)\\s+(.+)$/i);\n  if (forgetMatch) {\n    const query = cleanMemoryValue(forgetMatch[1]);\n    return query ? { command: \"forget\", query } : { command: \"\" };\n  }\n  const rememberMatch = textValue.match(/^(?:remember|note to remember|save memory|memorize)\\b\\s*:?\\s*(.+)$/i);\n  if (rememberMatch) {\n    const content = cleanMemoryValue(rememberMatch[1]);\n    return content ? { command: \"remember\", content, memoryType: \"note\" } : { command: \"\" };\n  }\n  const politeRemember = textValue.match(/^(?:please\\s+)?remember\\b\\s*(.+)$/i);\n  if (politeRemember) {\n    const content = cleanMemoryValue(politeRemember[1]);\n    return content ? { command: \"remember\", content, memoryType: \"note\" } : { command: \"\" };\n  }\n  return { command: \"\" };\n}\nfunction cleanBudgetCategory(value) {\n  return String(value || \"\").trim().replace(/^[:\\-\\s]+/, \"\").replace(/[?.!\\s]+$/, \"\").trim();\n}\nfunction parseBudgetAmount(value) {\n  const amount = Number(String(value || \"\").replace(/,/g, \"\"));\n  return Number.isFinite(amount) && amount > 0 ? amount : 0;\n}\nfunction parseBudgetCommand(value) {\n  const textValue = String(value || \"\").trim();\n  if (/^(?:list|show|view)\\s+(?:my\\s+)?budgets\\??$/i.test(textValue) || /^what(?:'s| is)?\\s+my\\s+budgets?\\??$/i.test(textValue)) {\n    return { command: \"list\" };\n  }\n  const deleteMatch = textValue.match(/^(?:delete|remove|clear)\\s+(.+?)\\s+budget$/i) || textValue.match(/^budget\\s+delete\\s+(.+)$/i);\n  if (deleteMatch) {\n    const category = cleanBudgetCategory(deleteMatch[1]);\n    return category ? { command: \"delete\", category } : { command: \"\" };\n  }\n  const setMatch =\n    textValue.match(/^(?:set|make)\\s+(.+?)\\s+budget\\s+(?:to\\s+)?(?:aed\\s*)?([\\d,]+(?:\\.\\d{1,2})?)$/i) ||\n    textValue.match(/^budget\\s+(.+?)\\s+(?:to\\s+)?(?:aed\\s*)?([\\d,]+(?:\\.\\d{1,2})?)$/i) ||\n    textValue.match(/^(.+?)\\s+budget\\s+(?:is\\s+|=|to\\s+)?(?:aed\\s*)?([\\d,]+(?:\\.\\d{1,2})?)$/i);\n  if (setMatch) {\n    const category = cleanBudgetCategory(setMatch[1]);\n    const amount = parseBudgetAmount(setMatch[2]);\n    return category && amount ? { command: \"set\", category, amount } : { command: \"\" };\n  }\n  return { command: \"\" };\n}\nconst memoryCommand = parseMemoryCommand(text);\nconst budgetCommand = parseBudgetCommand(text);\nconst pendingCommand = lowerText === \"confirm\" || lowerText === \"/confirm\" || lowerText.startsWith(\"confirm \")\n  ? \"confirm\"\n  : (lowerText === \"cancel\" || lowerText === \"/cancel\" || lowerText.startsWith(\"cancel \")\n    ? \"cancel\"\n    : (/^(undo|undo last|delete last|remove last)( expense)?$/.test(lowerText) ? \"undo_expense\" : (memoryCommand.command ? \"memory_\" + memoryCommand.command : (budgetCommand.command ? \"budget_\" + budgetCommand.command : \"\"))));\nconst createdAt = new Date().toISOString();\nconst binary = item.binary || {};\nconst firstBinaryKey = Object.keys(binary)[0];\nconst media = firstBinaryKey ? binary[firstBinaryKey] : null;\nconst isVoice = Boolean(message.voice || (media?.mimeType || \"\").startsWith(\"audio/\"));\nconst isPhoto = Boolean(message.photo || (media?.mimeType || \"\").startsWith(\"image/\"));\n\nconst schema = {\n  type: \"object\",\n  additionalProperties: false,\n  properties: {\n    intent: { type: \"string\", enum: [\"expense\", \"receipt\", \"todo\", \"reminder\", \"task_done\", \"daily_summary\", \"weekly_summary\", \"unknown\"] },\n    date: { type: \"string\" },\n    merchant: { type: \"string\" },\n    amount: { type: \"number\" },\n    currency: { type: \"string\" },\n    category: { type: \"string\", enum: [\"Food\", \"Transport\", \"Groceries\", \"Bills\", \"Shopping\", \"Business\", \"Health\", \"Entertainment\", \"Travel\", \"Trading\", \"Other\"] },\n    payment_method: { type: \"string\" },\n    card: { type: \"string\" },\n    notes: { type: \"string\" },\n    task: { type: \"string\" },\n    type: { type: \"string\", enum: [\"todo\", \"reminder\", \"\"] },\n    priority: { type: \"string\", enum: [\"low\", \"normal\", \"high\", \"\"] },\n    due_at: { type: \"string\" },\n    task_match_text: { type: \"string\" },\n    missing_fields: { type: \"array\", items: { type: \"string\" } },\n    confidence: { type: \"number\" }\n  },\n  required: [\"intent\", \"date\", \"merchant\", \"amount\", \"currency\", \"category\", \"payment_method\", \"card\", \"notes\", \"task\", \"type\", \"priority\", \"due_at\", \"task_match_text\", \"missing_fields\", \"confidence\"]\n};\n\nconst systemPrompt = [\n  \"You are a strict JSON parser for a Telegram personal assistant.\",\n  \"Extract expenses, receipt totals, todos, reminders, task completion commands, and summary requests.\",\n  \"Return only JSON that matches the provided schema. No prose, markdown, comments, or extra keys.\",\n  \"Use Asia/Dubai timezone. Current timestamp: \" + createdAt + \".\",\n  \"Default currency is AED.\",\n  \"If the amount, task text, due time, or completion target is missing, include the missing key in missing_fields and keep confidence below 0.7.\",\n  \"For expenses, merchant can be a best guess from context; amount is required. Put specific card/account names in card, for example ADCB Visa, Wio, Mashreq, cash, Apple Pay.\",\n  \"Known debit cards: ADCB Debit, ENBD Debit, DIB Debit, RAK Debit, CBD Debit.\",\n  \"Known credit cards: ADCB Credit, ENBD Credit, DIB Credit, RAK Credit, TABBY Credit.\",\n  \"Recurring payment names: ADCB Credit Card Payment, ENBD Credit Card Payment, DIB Credit Card Payment, RAK Credit Card Payment, TABBY Payment, ETISALAT Payment.\",\n  \"If the user says a bank plus debit or credit, normalize card to the matching known card name. If a new card name is mentioned, preserve it exactly in card so Supabase can auto-add it.\",\n  \"For receipt photos, extract merchant/date/total/currency/category/payment card if visible.\",\n  \"For reminders, due_at must be ISO 8601 if the user gave a due date/time. If not, put due_at empty and include due_at in missing_fields.\",\n  \"For task completion messages like 'done buy printer ink', set intent task_done and task_match_text to the target phrase.\",\n  \"For 'summary today', 'weekly report', or similar, set intent daily_summary or weekly_summary.\"\n].join(\"\\n\");\n\nconst content = [{ type: \"input_text\", text: text || (isPhoto ? \"Parse this receipt image.\" : \"Parse this Telegram message.\") }];\nif (media?.data && isPhoto) {\n  content.push({\n    type: \"input_image\",\n    image_url: \"data:\" + (media.mimeType || \"image/jpeg\") + \";base64,\" + media.data\n  });\n}\n\nreturn [{\n  json: {\n    chatId,\n    createdAt,\n    source: isVoice ? \"telegram_voice\" : (isPhoto ? \"telegram_photo\" : \"telegram_text\"),\n    originalText: text,\n    needsTranscription: isVoice,\n    pendingCommand,\n    memoryCommand,\n    budgetCommand,\n    isCallback,\n    callbackQueryId,\n    mediaMimeType: media?.mimeType || \"\",\n    binaryKey: firstBinaryKey || \"\",\n    voiceFileId: message.voice?.file_id || \"\",\n    binaryKey: firstBinaryKey || \"\",\n    voiceFileId: message.voice?.file_id || \"\",\n    binaryKey: firstBinaryKey || \"\",\n    openaiBody: {\n      model: \"gpt-4.1-mini\",\n      input: [\n        { role: \"system\", content: [{ type: \"input_text\", text: systemPrompt }] },\n        { role: \"user\", content }\n      ],\n      text: {\n        format: {\n          type: \"json_schema\",\n          name: \"assistant_parse\",\n          strict: true,\n          schema\n        }\n      }\n    }\n  },\n  binary\n}];"
+          "jsCode": "const item = $input.first();\nconst update = item.json || {};\nconst callback = update.callback_query || null;\nconst message = callback?.message || update.message || update.edited_message || {};\nconst chatId = message.chat?.id ? String(message.chat.id) : \"\";\nconst callbackData = String(callback?.data || \"\");\nconst text = callbackData || message.text || message.caption || \"\";\nconst isCallback = Boolean(callback?.id);\nconst callbackQueryId = callback?.id || \"\";\nconst telegramUpdateId = update.update_id ?? null;\nconst pendingActionMatch = callbackData.match(/^(?:confirm|cancel)[:|]([0-9a-f-]{36})$/i);\nconst pendingActionId = pendingActionMatch ? pendingActionMatch[1] : \"\";\nconst lowerText = String(text || \"\").trim().toLowerCase();\nfunction cleanMemoryValue(value) {\n  return String(value || \"\").trim().replace(/^[:\\-\\s]+/, \"\").replace(/[?.!\\s]+$/, \"\").trim();\n}\nfunction parseMemoryCommand(value) {\n  const textValue = String(value || \"\").trim();\n  if (!textValue) return { command: \"\" };\n  if (/^(what do you remember|what have i told you to remember|show memories|list memories|list my memories)\\??$/i.test(textValue)\n    || (/^remind me/i.test(textValue) && /\\b(notes? to remember|told you.*remember|everything.*remember)\\b/i.test(textValue))) {\n    return { command: \"recall\" };\n  }\n  const forgetMatch = textValue.match(/^(?:forget|delete memory|remove memory)\\s+(.+)$/i);\n  if (forgetMatch) {\n    const query = cleanMemoryValue(forgetMatch[1]);\n    return query ? { command: \"forget\", query } : { command: \"\" };\n  }\n  const rememberMatch = textValue.match(/^(?:remember|note to remember|save memory|memorize)\\b\\s*:?\\s*(.+)$/i);\n  if (rememberMatch) {\n    const content = cleanMemoryValue(rememberMatch[1]);\n    return content ? { command: \"remember\", content, memoryType: \"note\" } : { command: \"\" };\n  }\n  const politeRemember = textValue.match(/^(?:please\\s+)?remember\\b\\s*(.+)$/i);\n  if (politeRemember) {\n    const content = cleanMemoryValue(politeRemember[1]);\n    return content ? { command: \"remember\", content, memoryType: \"note\" } : { command: \"\" };\n  }\n  return { command: \"\" };\n}\nfunction cleanBudgetCategory(value) {\n  return String(value || \"\").trim().replace(/^[:\\-\\s]+/, \"\").replace(/[?.!\\s]+$/, \"\").trim();\n}\nfunction parseBudgetAmount(value) {\n  const cleaned = String(value || \"\").toLowerCase().replace(/,/g, \"\").replace(/\\s*aed\\s*$/i, \"\").trim();\n  const kMatch = cleaned.match(/^(\\d+(?:\\.\\d+)?)\\s*k$/);\n  const amount = kMatch ? Number(kMatch[1]) * 1000 : Number(cleaned);\n  return Number.isFinite(amount) && amount > 0 ? amount : 0;\n}\nfunction parseBudgetCommand(value) {\n  const textValue = String(value || \"\").trim();\n  if (/^(?:list|show|view)\\s+(?:my\\s+)?budgets\\??$/i.test(textValue) || /^what(?:'s| is)?\\s+my\\s+budgets?\\??$/i.test(textValue)) {\n    return { command: \"list\" };\n  }\n  const deleteMatch = textValue.match(/^(?:delete|remove|clear)\\s+(.+?)\\s+budget$/i) || textValue.match(/^budget\\s+delete\\s+(.+)$/i);\n  if (deleteMatch) {\n    const category = cleanBudgetCategory(deleteMatch[1]);\n    return category ? { command: \"delete\", category } : { command: \"\" };\n  }\n  const amountPattern = \"([\\\\d,]+(?:\\\\.\\\\d{1,2})?\\\\s*k?|\\\\d+(?:\\\\.\\\\d+)?k|[\\\\d,]+(?:\\\\.\\\\d{1,2})?\\\\s*aed)\";\n  const setMatch =\n    textValue.match(new RegExp(\"^(?:set|make)\\\\s+(.+?)\\\\s+budget\\\\s+(?:to\\\\s+)?(?:aed\\\\s*)?\" + amountPattern + \"(?:\\\\s+(weekly|monthly))?$\", \"i\")) ||\n    textValue.match(new RegExp(\"^budget\\\\s+(.+?)\\\\s+(?:to\\\\s+)?(?:aed\\\\s*)?\" + amountPattern + \"(?:\\\\s+(weekly|monthly))?$\", \"i\")) ||\n    textValue.match(new RegExp(\"^(.+?)\\\\s+budget\\\\s+(?:is\\\\s+|=|to\\\\s+)?(?:aed\\\\s*)?\" + amountPattern + \"(?:\\\\s+(weekly|monthly))?$\", \"i\")) ||\n    textValue.match(new RegExp(\"^(.+?)\\\\s+limit\\\\s+(?:aed\\\\s*)?\" + amountPattern + \"(?:\\\\s+(weekly|monthly))?$\", \"i\")) ||\n    textValue.match(new RegExp(\"^set\\\\s+(weekly|monthly)\\\\s+(.+?)\\\\s+cap\\\\s+(?:aed\\\\s*)?\" + amountPattern + \"$\", \"i\")) ||\n    textValue.match(new RegExp(\"^(.+?)\\\\s+(?:aed\\\\s*)?\" + amountPattern + \"(?:\\\\s+(weekly|monthly))?$\", \"i\"));\n  if (setMatch) {\n    const periodFirst = setMatch[1] === \"weekly\" || setMatch[1] === \"monthly\";\n    const category = cleanBudgetCategory(periodFirst ? setMatch[2] : setMatch[1]);\n    const amount = parseBudgetAmount(periodFirst ? setMatch[3] : setMatch[2]);\n    const period = periodFirst ? setMatch[1] : (setMatch[3] || \"monthly\");\n    return category && amount ? { command: \"set\", category, amount, period } : { command: \"\" };\n  }\n  return { command: \"\" };\n}\nconst memoryCommand = parseMemoryCommand(text);\nconst budgetCommand = parseBudgetCommand(text);\nconst pendingCommand = lowerText === \"confirm\" || lowerText === \"/confirm\" || lowerText.startsWith(\"confirm\") || lowerText.startsWith(\"confirm:\")\n  ? \"confirm\"\n  : (lowerText === \"cancel\" || lowerText === \"/cancel\" || lowerText.startsWith(\"cancel\") || lowerText.startsWith(\"cancel:\")\n    ? \"cancel\"\n    : (/^(undo|undo last|delete last|remove last)( expense)?$/.test(lowerText) ? \"undo_expense\" : (memoryCommand.command ? \"memory_\" + memoryCommand.command : (budgetCommand.command ? \"budget_\" + budgetCommand.command : \"\"))));\nconst createdAt = new Date().toISOString();\nconst binary = item.binary || {};\nconst firstBinaryKey = Object.keys(binary)[0];\nconst media = firstBinaryKey ? binary[firstBinaryKey] : null;\nconst isVoice = Boolean(message.voice || (media?.mimeType || \"\").startsWith(\"audio/\"));\nconst isPhoto = Boolean(message.photo || (media?.mimeType || \"\").startsWith(\"image/\"));\n\nconst schema = {\n  type: \"object\",\n  additionalProperties: false,\n  properties: {\n    intent: { type: \"string\", enum: [\"expense\", \"receipt\", \"todo\", \"reminder\", \"task_done\", \"daily_summary\", \"weekly_summary\", \"unknown\"] },\n    date: { type: \"string\" },\n    merchant: { type: \"string\" },\n    amount: { type: \"number\" },\n    currency: { type: \"string\" },\n    category: { type: \"string\", enum: [\"Food\", \"Transport\", \"Groceries\", \"Bills\", \"Shopping\", \"Business\", \"Health\", \"Entertainment\", \"Travel\", \"Trading\", \"Other\"] },\n    payment_method: { type: \"string\" },\n    card: { type: \"string\" },\n    notes: { type: \"string\" },\n    task: { type: \"string\" },\n    type: { type: \"string\", enum: [\"todo\", \"reminder\", \"\"] },\n    priority: { type: \"string\", enum: [\"low\", \"normal\", \"high\", \"\"] },\n    due_at: { type: \"string\" },\n    task_match_text: { type: \"string\" },\n    missing_fields: { type: \"array\", items: { type: \"string\" } },\n    confidence: { type: \"number\" }\n  },\n  required: [\"intent\", \"date\", \"merchant\", \"amount\", \"currency\", \"category\", \"payment_method\", \"card\", \"notes\", \"task\", \"type\", \"priority\", \"due_at\", \"task_match_text\", \"missing_fields\", \"confidence\"]\n};\n\nconst systemPrompt = [\n  \"You are a strict JSON parser for a Telegram personal assistant.\",\n  \"Extract expenses, receipt totals, todos, reminders, task completion commands, and summary requests.\",\n  \"Return only JSON that matches the provided schema. No prose, markdown, comments, or extra keys.\",\n  \"Use Asia/Dubai timezone. Current timestamp: \" + createdAt + \".\",\n  \"Default currency is AED.\",\n  \"If the amount, task text, due time, or completion target is missing, include the missing key in missing_fields and keep confidence below 0.7.\",\n  \"For expenses, merchant can be a best guess from context; amount is required. Put specific card/account names in card, for example ADCB Visa, Wio, Mashreq, cash, Apple Pay.\",\n  \"Known debit cards: ADCB Debit, ENBD Debit, DIB Debit, RAK Debit, CBD Debit.\",\n  \"Known credit cards: ADCB Credit, ENBD Credit, DIB Credit, RAK Credit, TABBY Credit.\",\n  \"Recurring payment names: ADCB Credit Card Payment, ENBD Credit Card Payment, DIB Credit Card Payment, RAK Credit Card Payment, TABBY Payment, ETISALAT Payment.\",\n  \"If the user says a bank plus debit or credit, normalize card to the matching known card name. If a new card name is mentioned, preserve it exactly in card so Supabase can auto-add it.\",\n  \"For receipt photos, extract merchant/date/total/currency/category/payment card if visible.\",\n  \"For reminders, due_at must be ISO 8601 if the user gave a due date/time. If not, put due_at empty and include due_at in missing_fields.\",\n  \"For task completion messages like 'done buy printer ink', set intent task_done and task_match_text to the target phrase.\",\n  \"For 'summary today', 'weekly report', or similar, set intent daily_summary or weekly_summary.\"\n].join(\"\\n\");\n\nconst content = [{ type: \"input_text\", text: text || (isPhoto ? \"Parse this receipt image.\" : \"Parse this Telegram message.\") }];\nif (media?.data && isPhoto) {\n  content.push({\n    type: \"input_image\",\n    image_url: \"data:\" + (media.mimeType || \"image/jpeg\") + \";base64,\" + media.data\n  });\n}\n\nreturn [{\n  json: {\n    chatId,\n    telegramUpdateId,\n    createdAt,\n    source: isVoice ? \"telegram_voice\" : (isPhoto ? \"telegram_photo\" : \"telegram_text\"),\n    originalText: text,\n    needsTranscription: isVoice,\n    pendingCommand,\n    pendingActionId,\n    memoryCommand,\n    budgetCommand,\n    isCallback,\n    callbackQueryId,\n    mediaMimeType: media?.mimeType || \"\",\n    binaryKey: firstBinaryKey || \"\",\n    voiceFileId: message.voice?.file_id || \"\",\n    openaiBody: {\n      model: \"gpt-4.1-mini\",\n      input: [\n        { role: \"system\", content: [{ type: \"input_text\", text: systemPrompt }] },\n        { role: \"user\", content }\n      ],\n      text: {\n        format: {\n          type: \"json_schema\",\n          name: \"assistant_parse\",\n          strict: true,\n          schema\n        }\n      }\n    }\n  },\n  binary\n}];"
         },
         "id": "assistant-normalize",
         "name": "Normalize Telegram Input",
@@ -156,8 +156,8 @@
       },
       {
         "parameters": {
-          "chatId": "=5379148910",
-          "text": "={{ $('Parse OpenAI Result').item.json.confirmation }}",
+          "chatId": "={{ $('Normalize Telegram Input').item.json.chatId || '5379148910' }}",
+          "text": "={{ $json.confirmation || $('Parse OpenAI Result').item.json.confirmation }}",
           "additionalFields": {
             "appendAttribution": false
           }
@@ -236,7 +236,7 @@
       },
       {
         "parameters": {
-          "chatId": "=5379148910",
+          "chatId": "={{ $('Normalize Telegram Input').item.json.chatId || '5379148910' }}",
           "text": "={{ $('Parse OpenAI Result').item.json.confirmation }}",
           "additionalFields": {
             "appendAttribution": false
@@ -343,7 +343,7 @@
       },
       {
         "parameters": {
-          "chatId": "=5379148910",
+          "chatId": "={{ $('Normalize Telegram Input').item.json.chatId || '5379148910' }}",
           "text": "={{ $json.confirmation || $('Find Task to Complete').item.json.confirmation }}",
           "additionalFields": {
             "appendAttribution": false
@@ -367,7 +367,7 @@
       },
       {
         "parameters": {
-          "chatId": "=5379148910",
+          "chatId": "={{ $('Normalize Telegram Input').item.json.chatId || '5379148910' }}",
           "text": "={{ $json.confirmation }}",
           "additionalFields": {
             "appendAttribution": false
@@ -593,7 +593,7 @@
       {
         "parameters": {
           "method": "GET",
-          "url": "=https://uxdueryjbfzfvyznxgax.supabase.co/rest/v1/assistant_pending_actions?chat_id=eq.{{ $json.chatId }}&status=eq.pending&expires_at=gt.{{ encodeURIComponent($now.toISO()) }}&select=*&order=created_at.desc&limit=1",
+          "url": "={{ 'https://uxdueryjbfzfvyznxgax.supabase.co/rest/v1/assistant_pending_actions?select=*&status=eq.pending&expires_at=gt.' + encodeURIComponent($now.toISO()) + '&chat_id=eq.' + encodeURIComponent($json.chatId) + ($json.pendingActionId ? '&id=eq.' + encodeURIComponent($json.pendingActionId) : '&order=created_at.desc&limit=1') }}",
           "sendHeaders": true,
           "headerParameters": {
             "parameters": [
@@ -621,7 +621,7 @@
       {
         "parameters": {
           "method": "GET",
-          "url": "=https://uxdueryjbfzfvyznxgax.supabase.co/rest/v1/assistant_pending_actions?chat_id=eq.{{ $json.chatId }}&status=eq.pending&expires_at=gt.{{ encodeURIComponent($now.toISO()) }}&select=*&order=created_at.desc&limit=1",
+          "url": "={{ 'https://uxdueryjbfzfvyznxgax.supabase.co/rest/v1/assistant_pending_actions?select=*&status=eq.pending&expires_at=gt.' + encodeURIComponent($now.toISO()) + '&chat_id=eq.' + encodeURIComponent($json.chatId) + ($json.pendingActionId ? '&id=eq.' + encodeURIComponent($json.pendingActionId) : '&order=created_at.desc&limit=1') }}",
           "sendHeaders": true,
           "headerParameters": {
             "parameters": [
@@ -848,8 +848,8 @@
       },
       {
         "parameters": {
-          "chatId": "=5379148910",
-          "text": "={{ $('Prepare Confirmed Pending').item.json.confirmation || $('Prepare Cancel Pending').item.json.confirmation || $json.confirmation }}",
+          "chatId": "={{ $('Normalize Telegram Input').item.json.chatId || '5379148910' }}",
+          "text": "={{ (() => { try { const warning = $('Append Confirmed Budget Warning').item.json.confirmation; if (warning) return warning; } catch (error) {} try { return $('Prepare Confirmed Pending').item.json.confirmation; } catch (error) {} try { return $('Prepare Cancel Pending').item.json.confirmation; } catch (error) {} return $json.confirmation; })() }}",
           "additionalFields": {
             "appendAttribution": false
           },
@@ -929,7 +929,7 @@
       },
       {
         "parameters": {
-          "chatId": "=5379148910",
+          "chatId": "={{ $('Normalize Telegram Input').item.json.chatId || '5379148910' }}",
           "text": "={{ $('Prepare Pending Action').item.json.pendingReply }}",
           "replyMarkup": "replyKeyboard",
           "additionalFields": {
@@ -1113,7 +1113,7 @@
       },
       {
         "parameters": {
-          "chatId": "=5379148910",
+          "chatId": "={{ $('Normalize Telegram Input').item.json.chatId || '5379148910' }}",
           "text": "={{ $('Prepare Undo Expense').item.json.confirmation }}",
           "additionalFields": {
             "appendAttribution": false
@@ -1477,7 +1477,7 @@
       },
       {
         "parameters": {
-          "jsCode": "const source = $(\"Normalize Telegram Input\").item.json;\nconst command = source.budgetCommand || {};\nconst category = String(command.category || \"\").trim();\nconst amount = Number(command.amount || 0);\nreturn [{\n  json: {\n    category,\n    amount,\n    currency: \"AED\",\n    period: \"monthly\",\n    active: true,\n    confirmation: \"Budget set: \" + category + \" at AED \" + amount.toLocaleString(\"en-US\") + \" monthly.\"\n  }\n}];"
+          "jsCode": "const source = $(\"Normalize Telegram Input\").item.json;\nconst command = source.budgetCommand || {};\nconst category = String(command.category || \"\").trim();\nconst amount = Number(command.amount || 0);\nconst period = command.period || \"monthly\";\nreturn [{\n  json: {\n    category,\n    amount,\n    currency: \"AED\",\n    period,\n    active: true,\n    confirmation: \"Budget set: \" + category + \" at AED \" + amount.toLocaleString(\"en-US\") + \" \" + period + \".\"\n  }\n}];"
         },
         "id": "assistant-prepare-budget-upsert",
         "name": "Prepare Budget Upsert",
@@ -1698,6 +1698,242 @@
             "name": "Telegram account"
           }
         }
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "https://uxdueryjbfzfvyznxgax.supabase.co/rest/v1/assistant_processed_telegram_updates?on_conflict=telegram_update_id",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "apikey",
+                "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+              },
+              {
+                "name": "Authorization",
+                "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}"
+              },
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Prefer",
+                "value": "resolution=ignore-duplicates,return=representation"
+              }
+            ]
+          },
+          "options": {},
+          "sendBody": true,
+          "contentType": "json",
+          "specifyBody": "json",
+          "jsonBody": "={{ JSON.stringify({ telegram_update_id: $json.telegramUpdateId, chat_id: $json.chatId, update_type: $json.isCallback ? 'callback_query' : $json.source, received_at: $json.createdAt, raw_payload: { source: $json.source, original_text: $json.originalText } }) }}"
+        },
+        "id": "assistant-check-telegram-update-dedupe",
+        "name": "Check Telegram Update Dedupe",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.4,
+        "position": [
+          340,
+          304
+        ],
+        "alwaysOutputData": true
+      },
+      {
+        "parameters": {
+          "mode": "expression",
+          "output": "={{ $json.telegram_update_id ? 1 : 0 }}"
+        },
+        "id": "assistant-route-telegram-update-dedupe",
+        "name": "Route Telegram Update Dedupe",
+        "type": "n8n-nodes-base.switch",
+        "typeVersion": 3.2,
+        "position": [
+          560,
+          304
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "return $items(\"Normalize Telegram Input\").map((item) => ({ json: item.json, binary: item.binary || {} }));"
+        },
+        "id": "assistant-mark-telegram-update-processed",
+        "name": "Mark Telegram Update Processed",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          760,
+          304
+        ]
+      },
+      {
+        "parameters": {
+          "resource": "message",
+          "operation": "sendMessage",
+          "chatId": "={{ $('Normalize Telegram Input').item.json.chatId || '5379148910' }}",
+          "text": "I already processed that Telegram update.",
+          "additionalFields": {
+            "appendAttribution": false
+          }
+        },
+        "id": "assistant-reply-duplicate-telegram-update",
+        "name": "Reply Duplicate Telegram Update",
+        "type": "n8n-nodes-base.telegram",
+        "typeVersion": 1.2,
+        "position": [
+          760,
+          40
+        ],
+        "webhookId": "937677cf-3466-43ef-bdf4-d562e1327122",
+        "credentials": {
+          "telegramApi": {
+            "id": "TREgfHj7rs4L3NDE",
+            "name": "Telegram account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "method": "GET",
+          "url": "={{ 'https://uxdueryjbfzfvyznxgax.supabase.co/rest/v1/assistant_budgets?select=category,amount,currency,period,active&active=eq.true&period=eq.monthly&limit=1&category=eq.' + encodeURIComponent($json.category || 'Other') }}",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "apikey",
+                "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+              },
+              {
+                "name": "Authorization",
+                "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "id": "assistant-read-budget-after-expense",
+        "name": "Read Budget After Expense",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.4,
+        "position": [
+          1740,
+          120
+        ],
+        "alwaysOutputData": true
+      },
+      {
+        "parameters": {
+          "method": "GET",
+          "url": "={{ 'https://uxdueryjbfzfvyznxgax.supabase.co/rest/v1/assistant_expenses?select=amount&category=eq.' + encodeURIComponent($('Append Expense').item.json.category || 'Other') + '&expense_date=gte.' + $now.startOf('month').toISODate() + '&expense_date=lte.' + $now.endOf('month').toISODate() }}",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "apikey",
+                "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+              },
+              {
+                "name": "Authorization",
+                "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "id": "assistant-read-monthly-spend-after-expense",
+        "name": "Read Monthly Spend After Expense",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.4,
+        "position": [
+          1960,
+          120
+        ],
+        "alwaysOutputData": true
+      },
+      {
+        "parameters": {
+          "jsCode": "const budget = $(\"Read Budget After Expense\").item.json || {};\nconst rows = $input.all().map((item) => item.json).filter((row) => row.amount !== undefined);\nconst base = $(\"Parse OpenAI Result\").item.json;\nconst confirmation = base.confirmation || \"Saved expense.\";\nconst limit = Number(budget.amount || 0);\n\nif (!limit) return [{ json: { ...base, confirmation } }];\n\nconst spend = rows.reduce((total, row) => total + Number(row.amount || 0), 0);\nconst percent = spend / limit;\nlet warning = \"\";\nif (percent >= 1) {\n  warning = \"\\nBudget alert: \" + (budget.category || base.category || \"This category\") + \" is over budget at AED \" + spend.toLocaleString(\"en-US\") + \" of AED \" + limit.toLocaleString(\"en-US\") + \".\";\n} else if (percent >= 0.8) {\n  warning = \"\\nBudget alert: \" + (budget.category || base.category || \"This category\") + \" is at \" + Math.round(percent * 100) + \"% of the monthly budget.\";\n}\n\nreturn [{ json: { ...base, monthlySpend: spend, monthlyBudget: limit, confirmation: confirmation + warning } }];"
+        },
+        "id": "assistant-append-budget-warning",
+        "name": "Append Budget Warning",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          2180,
+          120
+        ]
+      },
+      {
+        "parameters": {
+          "method": "GET",
+          "url": "={{ 'https://uxdueryjbfzfvyznxgax.supabase.co/rest/v1/assistant_budgets?select=category,amount,currency,period,active&active=eq.true&period=eq.monthly&limit=1&category=eq.' + encodeURIComponent($json.category || 'Other') }}",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "apikey",
+                "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+              },
+              {
+                "name": "Authorization",
+                "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "id": "assistant-read-budget-after-confirmed-expense",
+        "name": "Read Budget After Confirmed Expense",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.4,
+        "position": [
+          1500,
+          -120
+        ],
+        "alwaysOutputData": true
+      },
+      {
+        "parameters": {
+          "method": "GET",
+          "url": "={{ 'https://uxdueryjbfzfvyznxgax.supabase.co/rest/v1/assistant_expenses?select=amount&category=eq.' + encodeURIComponent($('Prepare Confirmed Pending').item.json.category || 'Other') + '&expense_date=gte.' + $now.startOf('month').toISODate() + '&expense_date=lte.' + $now.endOf('month').toISODate() }}",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "apikey",
+                "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+              },
+              {
+                "name": "Authorization",
+                "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "id": "assistant-read-monthly-spend-after-confirmed-expense",
+        "name": "Read Monthly Spend After Confirmed Expense",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.4,
+        "position": [
+          1720,
+          -120
+        ],
+        "alwaysOutputData": true
+      },
+      {
+        "parameters": {
+          "jsCode": "const budget = $(\"Read Budget After Confirmed Expense\").item.json || {};\nconst rows = $input.all().map((item) => item.json).filter((row) => row.amount !== undefined);\nconst base = $(\"Prepare Confirmed Pending\").item.json;\nconst limit = Number(budget.amount || 0);\n\nif (!limit) return [{ json: base }];\n\nconst spend = rows.reduce((total, row) => total + Number(row.amount || 0), 0);\nconst percent = spend / limit;\nlet warning = \"\";\nif (percent >= 1) {\n  warning = \"\\nBudget alert: \" + (budget.category || base.category || \"This category\") + \" is over budget at AED \" + spend.toLocaleString(\"en-US\") + \" of AED \" + limit.toLocaleString(\"en-US\") + \".\";\n} else if (percent >= 0.8) {\n  warning = \"\\nBudget alert: \" + (budget.category || base.category || \"This category\") + \" is at \" + Math.round(percent * 100) + \"% of the monthly budget.\";\n}\n\nreturn [{ json: { ...base, monthlySpend: spend, monthlyBudget: limit, confirmation: (base.confirmation || \"Confirmed expense.\") + warning } }];"
+        },
+        "id": "assistant-append-confirmed-budget-warning",
+        "name": "Append Confirmed Budget Warning",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1940,
+          -120
+        ]
       }
     ],
     "connections": {
@@ -1716,12 +1952,7 @@
         "main": [
           [
             {
-              "node": "Route Pending Command",
-              "type": "main",
-              "index": 0
-            },
-            {
-              "node": "Prepare Callback Ack",
+              "node": "Check Telegram Update Dedupe",
               "type": "main",
               "index": 0
             }
@@ -1802,7 +2033,7 @@
         "main": [
           [
             {
-              "node": "Confirm Expense",
+              "node": "Read Budget After Expense",
               "type": "main",
               "index": 0
             }
@@ -2085,7 +2316,7 @@
         "main": [
           [
             {
-              "node": "Mark Pending Confirmed",
+              "node": "Read Budget After Confirmed Expense",
               "type": "main",
               "index": 0
             }
@@ -2495,6 +2726,117 @@
           [
             {
               "node": "Confirm Voice Problem",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Check Telegram Update Dedupe": {
+        "main": [
+          [
+            {
+              "node": "Route Telegram Update Dedupe",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Route Telegram Update Dedupe": {
+        "main": [
+          [
+            {
+              "node": "Reply Duplicate Telegram Update",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Mark Telegram Update Processed",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Mark Telegram Update Processed": {
+        "main": [
+          [
+            {
+              "node": "Route Pending Command",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Prepare Callback Ack",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Read Budget After Expense": {
+        "main": [
+          [
+            {
+              "node": "Read Monthly Spend After Expense",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Read Monthly Spend After Expense": {
+        "main": [
+          [
+            {
+              "node": "Append Budget Warning",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Append Budget Warning": {
+        "main": [
+          [
+            {
+              "node": "Confirm Expense",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Read Budget After Confirmed Expense": {
+        "main": [
+          [
+            {
+              "node": "Read Monthly Spend After Confirmed Expense",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Read Monthly Spend After Confirmed Expense": {
+        "main": [
+          [
+            {
+              "node": "Append Confirmed Budget Warning",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Append Confirmed Budget Warning": {
+        "main": [
+          [
+            {
+              "node": "Mark Pending Confirmed",
               "type": "main",
               "index": 0
             }
