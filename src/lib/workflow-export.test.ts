@@ -77,4 +77,20 @@ describe("active inbox workflow export", () => {
     expect(workflow.connections["Read Monthly Spend After Expense"].main[0][0].node).toBe("Append Budget Warning");
     expect(workflow.connections["Append Budget Warning"].main[0][0].node).toBe("Confirm Expense");
   });
+
+  test("optional parser context reads continue when no rows exist", () => {
+    const workflow = readWorkflow();
+
+    expect(node(workflow, "Read Recent Memories").alwaysOutputData).toBe(true);
+    expect(workflow.connections["Read Recent Memories"].main[0][0].node).toBe("Apply Memory Context");
+  });
+
+  test("invalid parser results clarify instead of creating pending expenses", () => {
+    const workflow = readWorkflow();
+    const route = node(workflow, "Route Clarify or Pending");
+
+    expect(route.parameters.output).toContain("!$json.valid");
+    expect(workflow.connections["Route Clarify or Pending"].main[0][0].node).toBe("Confirm Unknown");
+    expect(workflow.connections["Route Clarify or Pending"].main[1][0].node).toBe("Prepare Pending Action");
+  });
 });

@@ -154,6 +154,10 @@ function parseBudgetAmount(value) {
   const amount = kMatch ? Number(kMatch[1]) * 1000 : Number(cleaned);
   return Number.isFinite(amount) && amount > 0 ? amount : 0;
 }
+function isSafeBareBudgetCategory(value) {
+  const words = cleanBudgetCategory(value).split(/\s+/).filter(Boolean);
+  return words.length > 0 && words.length <= 2;
+}
 function parseBudgetCommand(value) {
   const textValue = String(value || "").trim();
   if (/^(?:list|show|view)\s+(?:my\s+)?budgets\??$/i.test(textValue) || /^what(?:'s| is)?\s+my\s+budgets?\??$/i.test(textValue)) {
@@ -170,14 +174,20 @@ function parseBudgetCommand(value) {
     textValue.match(new RegExp("^budget\\s+(.+?)\\s+(?:to\\s+)?(?:aed\\s*)?" + amountPattern + "(?:\\s+(weekly|monthly))?$", "i")) ||
     textValue.match(new RegExp("^(.+?)\\s+budget\\s+(?:is\\s+|=|to\\s+)?(?:aed\\s*)?" + amountPattern + "(?:\\s+(weekly|monthly))?$", "i")) ||
     textValue.match(new RegExp("^(.+?)\\s+limit\\s+(?:aed\\s*)?" + amountPattern + "(?:\\s+(weekly|monthly))?$", "i")) ||
-    textValue.match(new RegExp("^set\\s+(weekly|monthly)\\s+(.+?)\\s+cap\\s+(?:aed\\s*)?" + amountPattern + "$", "i")) ||
-    textValue.match(new RegExp("^(.+?)\\s+(?:aed\\s*)?" + amountPattern + "(?:\\s+(weekly|monthly))?$", "i"));
+    textValue.match(new RegExp("^set\\s+(weekly|monthly)\\s+(.+?)\\s+cap\\s+(?:aed\\s*)?" + amountPattern + "$", "i"));
+  const bareSetMatch = textValue.match(new RegExp("^(.+?)\\s+(?:aed\\s*)?([\\d,]+(?:\\.\\d{1,2})?\\s*k|\\d+(?:\\.\\d+)?k|[\\d,]+(?:\\.\\d{1,2})?\\s*aed)(?:\\s+(weekly|monthly))?$", "i"));
   if (setMatch) {
     const periodFirst = setMatch[1] === "weekly" || setMatch[1] === "monthly";
     const category = cleanBudgetCategory(periodFirst ? setMatch[2] : setMatch[1]);
     const amount = parseBudgetAmount(periodFirst ? setMatch[3] : setMatch[2]);
     const period = periodFirst ? setMatch[1] : (setMatch[3] || "monthly");
     return category && amount ? { command: "set", category, amount, period } : { command: "" };
+  }
+  if (bareSetMatch) {
+    const category = cleanBudgetCategory(bareSetMatch[1]);
+    const amount = parseBudgetAmount(bareSetMatch[2]);
+    const period = bareSetMatch[3] || "monthly";
+    return category && amount && isSafeBareBudgetCategory(category) ? { command: "set", category, amount, period } : { command: "" };
   }
   return { command: "" };
 }
@@ -334,6 +344,8 @@ for (const workflowPath of workflowPaths) {
   findNode(workflow, "Read Pending for Cancel").parameters.url =
     `={{ '${SUPABASE_URL}/rest/v1/assistant_pending_actions?select=*&status=eq.pending&expires_at=gt.' + encodeURIComponent($now.toISO()) + '&chat_id=eq.' + encodeURIComponent($json.chatId) + ($json.pendingActionId ? '&id=eq.' + encodeURIComponent($json.pendingActionId) : '&order=created_at.desc&limit=1') }}`;
   findNode(workflow, "Route Pending Command").parameters.numberOutputs = 10;
+  findNode(workflow, "Route Clarify or Pending").parameters.output = "={{ !$json.valid || ($json.missing_fields && $json.missing_fields.length) ? 0 : 1 }}";
+  findNode(workflow, "Read Recent Memories").alwaysOutputData = true;
 
   findNode(workflow, "Prepare Budget Upsert").parameters.jsCode = String.raw`const source = $("Normalize Telegram Input").item.json;
 const command = source.budgetCommand || {};

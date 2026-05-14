@@ -65,5 +65,6 @@ describe("assistant budget commands", () => {
 
   test("ignores ordinary messages", () => {
     expect(parseBudgetCommand("spent 25 at Costa")).toEqual({ command: "" });
+    expect(parseBudgetCommand("hello smoke test 2")).toEqual({ command: "" });
   });
 });
