@@ -333,6 +333,7 @@ for (const workflowPath of workflowPaths) {
     `={{ '${SUPABASE_URL}/rest/v1/assistant_pending_actions?select=*&status=eq.pending&expires_at=gt.' + encodeURIComponent($now.toISO()) + '&chat_id=eq.' + encodeURIComponent($json.chatId) + ($json.pendingActionId ? '&id=eq.' + encodeURIComponent($json.pendingActionId) : '&order=created_at.desc&limit=1') }}`;
   findNode(workflow, "Read Pending for Cancel").parameters.url =
     `={{ '${SUPABASE_URL}/rest/v1/assistant_pending_actions?select=*&status=eq.pending&expires_at=gt.' + encodeURIComponent($now.toISO()) + '&chat_id=eq.' + encodeURIComponent($json.chatId) + ($json.pendingActionId ? '&id=eq.' + encodeURIComponent($json.pendingActionId) : '&order=created_at.desc&limit=1') }}`;
+  findNode(workflow, "Route Pending Command").parameters.numberOutputs = 10;
 
   findNode(workflow, "Prepare Budget Upsert").parameters.jsCode = String.raw`const source = $("Normalize Telegram Input").item.json;
 const command = source.budgetCommand || {};

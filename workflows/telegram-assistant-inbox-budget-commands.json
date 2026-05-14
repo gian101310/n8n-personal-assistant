@@ -1,6 +1,6 @@
 [
   {
-    "updatedAt": "2026-05-14T20:23:50.506Z",
+    "updatedAt": "2026-05-14T20:36:56.040Z",
     "createdAt": "2026-05-13T22:04:17.679Z",
     "id": "telegram-personal-assistant-inbox-budget-commands",
     "name": "Telegram Personal Assistant - Inbox Budget Commands",
@@ -579,7 +579,8 @@
       {
         "parameters": {
           "mode": "expression",
-          "output": "={{ $json.pendingCommand === 'confirm' ? 0 : ($json.pendingCommand === 'cancel' ? 1 : ($json.pendingCommand === 'undo_expense' ? 2 : ($json.pendingCommand === 'memory_remember' ? 3 : ($json.pendingCommand === 'memory_forget' ? 4 : ($json.pendingCommand === 'memory_recall' ? 5 : ($json.pendingCommand === 'budget_set' ? 6 : ($json.pendingCommand === 'budget_delete' ? 7 : ($json.pendingCommand === 'budget_list' ? 8 : 9)))))))) }}"
+          "output": "={{ $json.pendingCommand === 'confirm' ? 0 : ($json.pendingCommand === 'cancel' ? 1 : ($json.pendingCommand === 'undo_expense' ? 2 : ($json.pendingCommand === 'memory_remember' ? 3 : ($json.pendingCommand === 'memory_forget' ? 4 : ($json.pendingCommand === 'memory_recall' ? 5 : ($json.pendingCommand === 'budget_set' ? 6 : ($json.pendingCommand === 'budget_delete' ? 7 : ($json.pendingCommand === 'budget_list' ? 8 : 9)))))))) }}",
+          "numberOutputs": 10
         },
         "id": "assistant-route-command",
         "name": "Route Pending Command",

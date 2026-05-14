@@ -57,6 +57,18 @@ describe("active inbox workflow export", () => {
     expect(cancelUrl).toContain("pendingActionId");
   });
 
+  test("pending command switch exposes every expression output", () => {
+    const workflow = readWorkflow();
+    const route = node(workflow, "Route Pending Command");
+    const outputExpression = route.parameters.output;
+    const outputNumbers = [...outputExpression.matchAll(/\?\s*(\d+)\s*:/g), ...outputExpression.matchAll(/:\s*(\d+)\s*\)/g)]
+      .map((match) => Number(match[1]))
+      .filter(Number.isFinite);
+    const maxOutput = Math.max(...outputNumbers);
+
+    expect(route.parameters.numberOutputs).toBeGreaterThan(maxOutput);
+  });
+
   test("expense saves append budget warning before Telegram confirmation", () => {
     const workflow = readWorkflow();
 
