@@ -24,3 +24,5 @@ desktop.ini
 
 # n8n local database/backups should never live in the app repo
 .n8n/
+
+.vercel
