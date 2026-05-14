@@ -1,0 +1,559 @@
+{
+  "id": "telegram-personal-assistant-inbox",
+  "name": "Telegram Personal Assistant - Inbox",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {
+          "download": true,
+          "imageSize": "large",
+          "chatIds": "REPLACE_WITH_YOUR_TELEGRAM_CHAT_ID"
+        }
+      },
+      "id": "assistant-telegram-trigger",
+      "name": "Telegram Inbox",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        220,
+        300
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const item = $input.first();\nconst update = item.json || {};\nconst message = update.message || update.edited_message || {};\nconst chatId = message.chat?.id ? String(message.chat.id) : \"\";\nconst text = message.text || message.caption || \"\";\nconst createdAt = new Date().toISOString();\nconst binary = item.binary || {};\nconst firstBinaryKey = Object.keys(binary)[0];\nconst image = firstBinaryKey ? binary[firstBinaryKey] : null;\n\nconst schema = {\n  type: \"object\",\n  additionalProperties: false,\n  properties: {\n    intent: { type: \"string\", enum: [\"expense\", \"receipt\", \"todo\", \"reminder\", \"task_done\", \"unknown\"] },\n    date: { type: \"string\" },\n    merchant: { type: \"string\" },\n    amount: { type: \"number\" },\n    currency: { type: \"string\" },\n    category: { type: \"string\", enum: [\"Food\", \"Transport\", \"Groceries\", \"Bills\", \"Shopping\", \"Business\", \"Health\", \"Entertainment\", \"Travel\", \"Other\"] },\n    payment_method: { type: \"string\" },\n    card: { type: \"string\" },\n    notes: { type: \"string\" },\n    task: { type: \"string\" },\n    type: { type: \"string\", enum: [\"todo\", \"reminder\", \"\"] },\n    due_at: { type: \"string\" },\n    task_match_text: { type: \"string\" },\n    confidence: { type: \"number\" }\n  },\n  required: [\"intent\", \"date\", \"merchant\", \"amount\", \"currency\", \"category\", \"payment_method\", \"card\", \"notes\", \"task\", \"type\", \"due_at\", \"task_match_text\", \"confidence\"]\n};\n\nconst systemPrompt = [\n  \"You are a personal assistant that extracts expenses, todos, reminders, and completed-task commands from Telegram messages.\",\n  \"Use Asia/Dubai timezone. Today's date/time is \" + createdAt + \".\",\n  \"Default currency is AED. For unknown values, use empty strings, category Other, amount 0, and confidence below 0.6.\",\n  \"If the user mentions a specific card or account, put the broad method in payment_method and the specific name in card. Examples: payment_method card, card ADCB Visa; payment_method cash, card empty string.\",\n  \"For receipt photos, extract the most likely merchant, date, total amount, currency, and category.\",\n  \"For reminders, resolve relative dates such as tomorrow morning into ISO 8601 with timezone offset when possible.\",\n  \"For task completion messages like 'done buy printer ink', set intent task_done and task_match_text to the task phrase.\"\n].join(\"\\n\");\n\nconst content = [{ type: \"input_text\", text: text || \"Parse this receipt image.\" }];\nif (image?.data) {\n  content.push({\n    type: \"input_image\",\n    image_url: \"data:\" + (image.mimeType || \"image/jpeg\") + \";base64,\" + image.data\n  });\n}\n\nreturn [{\n  json: {\n    chatId,\n    createdAt,\n    source: image ? \"telegram_photo\" : \"telegram_text\",\n    originalText: text,\n    openaiBody: {\n      model: \"gpt-4.1-mini\",\n      input: [\n        { role: \"system\", content: [{ type: \"input_text\", text: systemPrompt }] },\n        { role: \"user\", content }\n      ],\n      text: {\n        format: {\n          type: \"json_schema\",\n          name: \"telegram_assistant_parse\",\n          strict: true,\n          schema\n        }\n      }\n    }\n  }\n}];"
+      },
+      "id": "assistant-normalize",
+      "name": "Normalize Telegram Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        450,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "method": "POST",
+        "url": "https://api.openai.com/v1/responses",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.openaiBody) }}",
+        "options": {}
+      },
+      "id": "assistant-openai-parse",
+      "name": "OpenAI Parse Message",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        680,
+        300
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const response = $input.first().json;\nlet text = response.output_text;\nif (!text && Array.isArray(response.output)) {\n  for (const output of response.output) {\n    for (const content of output.content || []) {\n      if (content.type === \"output_text\" && content.text) text = content.text;\n    }\n  }\n}\nlet parsed;\ntry {\n  parsed = JSON.parse(text || \"{}\");\n} catch (error) {\n  parsed = { intent: \"unknown\", notes: \"OpenAI returned invalid JSON\", confidence: 0 };\n}\nconst now = new Date().toISOString();\nconst amount = Number(parsed.amount || 0);\nconst intent = parsed.intent || \"unknown\";\nconst confidence = Number(parsed.confidence || 0);\n\nreturn [{\n  json: {\n    ...parsed,\n    intent,\n    amount,\n    confidence,\n    CreatedAt: now,\n    confirmation:\n      intent === \"expense\" || intent === \"receipt\"\n        ? \"Saved expense: \" + (parsed.merchant || \"Unknown merchant\") + \" \" + amount + \" \" + (parsed.currency || \"AED\") + \" (\" + (parsed.category || \"Other\") + \")\" + (confidence < 0.7 ? \"\\nLow confidence - please check the sheet.\" : \"\")\n        : intent === \"todo\"\n          ? \"Saved todo: \" + (parsed.task || parsed.notes || \"Task\")\n          : intent === \"reminder\"\n            ? \"Saved reminder: \" + (parsed.task || \"Reminder\") + (parsed.due_at ? \"\\nDue: \" + parsed.due_at : \"\")\n            : intent === \"task_done\"\n              ? \"I'll mark this done if I find a matching open task: \" + (parsed.task_match_text || parsed.task || \"\")\n              : \"I could not understand that yet. Try sending an expense, todo, reminder, or receipt photo.\"\n  }\n}];"
+      },
+      "id": "assistant-parse-openai",
+      "name": "Parse OpenAI Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        910,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "expression",
+        "numberOutputs": 4,
+        "output": "={{ ($json.intent === 'expense' || $json.intent === 'receipt') ? 0 : (($json.intent === 'todo' || $json.intent === 'reminder') ? 1 : ($json.intent === 'task_done' ? 2 : 3)) }}"
+      },
+      "id": "assistant-route-intent",
+      "name": "Route Intent",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        1140,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "return $input.all().map((item) => ({\n  json: {\n    Date: item.json.date || new Date().toISOString().slice(0, 10),\n    Merchant: item.json.merchant || \"\",\n    Amount: Number(item.json.amount || 0),\n    Currency: item.json.currency || \"AED\",\n    Category: item.json.category || \"Other\",\n    \"Payment Method\": item.json.payment_method || \"\",\n    Card: item.json.card || \"\",\n    Notes: item.json.notes || \"\",\n    Source: item.json.intent === \"receipt\" ? \"receipt\" : \"telegram_text\",\n    Confidence: item.json.confidence || 0,\n    \"Created At\": item.json.CreatedAt || new Date().toISOString()\n  }\n}));"
+      },
+      "id": "assistant-expense-row",
+      "name": "Prepare Expense Row",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1380,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "resource": "sheet",
+        "operation": "append",
+        "documentId": {
+          "mode": "id",
+          "value": "162DpKJTcJROOaCVN7r5gUdOv3q1X17VvYvgMt-Du20Y"
+        },
+        "sheetName": {
+          "mode": "name",
+          "value": "Expenses"
+        },
+        "dataMode": "autoMapInputData",
+        "options": {
+          "useAppend": true,
+          "handlingExtraData": "insertInNewColumn"
+        }
+      },
+      "id": "assistant-append-expense",
+      "name": "Append Expense",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 3,
+      "position": [
+        1620,
+        80
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "REPLACE_WITH_YOUR_TELEGRAM_CHAT_ID",
+        "text": "={{ $('Parse OpenAI Result').item.json.confirmation }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "assistant-expense-confirm",
+      "name": "Confirm Expense",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1860,
+        80
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "return $input.all().map((item) => ({\n  json: {\n    Task: item.json.task || item.json.notes || \"\",\n    Type: item.json.intent === \"reminder\" ? \"reminder\" : \"todo\",\n    Status: \"open\",\n    \"Due At\": item.json.due_at || \"\",\n    Notes: item.json.notes || \"\",\n    \"Created At\": item.json.CreatedAt || new Date().toISOString(),\n    \"Completed At\": \"\"\n  }\n}));"
+      },
+      "id": "assistant-task-row",
+      "name": "Prepare Task Row",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1380,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "resource": "sheet",
+        "operation": "append",
+        "documentId": {
+          "mode": "id",
+          "value": "162DpKJTcJROOaCVN7r5gUdOv3q1X17VvYvgMt-Du20Y"
+        },
+        "sheetName": {
+          "mode": "name",
+          "value": "Tasks"
+        },
+        "dataMode": "autoMapInputData",
+        "options": {
+          "useAppend": true,
+          "handlingExtraData": "insertInNewColumn"
+        }
+      },
+      "id": "assistant-append-task",
+      "name": "Append Task",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 3,
+      "position": [
+        1620,
+        260
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "REPLACE_WITH_YOUR_TELEGRAM_CHAT_ID",
+        "text": "={{ $('Parse OpenAI Result').item.json.confirmation }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "assistant-task-confirm",
+      "name": "Confirm Task",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1860,
+        260
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "resource": "sheet",
+        "operation": "read",
+        "documentId": {
+          "mode": "id",
+          "value": "162DpKJTcJROOaCVN7r5gUdOv3q1X17VvYvgMt-Du20Y"
+        },
+        "sheetName": {
+          "mode": "name",
+          "value": "Tasks"
+        },
+        "filtersUI": {},
+        "combineFilters": "AND",
+        "options": {}
+      },
+      "id": "assistant-read-tasks",
+      "name": "Read Tasks for Done",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 3,
+      "position": [
+        1380,
+        460
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const target = ($node[\"Parse OpenAI Result\"].json.task_match_text || \"\").toLowerCase();\nconst rows = $input.all();\nconst openRows = rows.filter((item) => String(item.json.Status || \"\").toLowerCase() === \"open\");\nfunction score(task) {\n  const words = target.split(/\\s+/).filter(Boolean);\n  const value = String(task || \"\").toLowerCase();\n  return words.filter((word) => value.includes(word)).length;\n}\nlet best = null;\nlet bestScore = 0;\nfor (const item of openRows) {\n  const current = score(item.json.Task);\n  if (current > bestScore) {\n    best = item;\n    bestScore = current;\n  }\n}\nif (!best || bestScore === 0) {\n  return [{ json: { confirmation: \"I could not find a matching open task. Try: done exact task name\" } }];\n}\nreturn [{\n  json: {\n    row_number: best.json.row_number,\n    Task: best.json.Task,\n    Type: best.json.Type,\n    Status: \"done\",\n    \"Due At\": best.json[\"Due At\"] || \"\",\n    Notes: best.json.Notes || \"\",\n    \"Created At\": best.json[\"Created At\"] || \"\",\n    \"Completed At\": new Date().toISOString(),\n    confirmation: \"Marked done: \" + best.json.Task\n  }\n}];"
+      },
+      "id": "assistant-find-task",
+      "name": "Find Task to Complete",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1620,
+        460
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "resource": "sheet",
+        "operation": "update",
+        "documentId": {
+          "mode": "id",
+          "value": "162DpKJTcJROOaCVN7r5gUdOv3q1X17VvYvgMt-Du20Y"
+        },
+        "sheetName": {
+          "mode": "name",
+          "value": "Tasks"
+        },
+        "dataMode": "defineBelow",
+        "columnToMatchOn": "row_number",
+        "valueToMatchOn": "={{ $json.row_number }}",
+        "fieldsUi": {
+          "values": [
+            {
+              "column": "Status",
+              "fieldValue": "done"
+            },
+            {
+              "column": "Completed At",
+              "fieldValue": "={{ $json['Completed At'] }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "assistant-update-task",
+      "name": "Update Completed Task",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 3,
+      "position": [
+        1860,
+        460
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "REPLACE_WITH_YOUR_TELEGRAM_CHAT_ID",
+        "text": "={{ $json.confirmation || $('Find Task to Complete').item.json.confirmation }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "assistant-done-confirm",
+      "name": "Confirm Done",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2100,
+        460
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "REPLACE_WITH_YOUR_TELEGRAM_CHAT_ID",
+        "text": "={{ $json.confirmation }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "assistant-unknown-confirm",
+      "name": "Confirm Unknown",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1380,
+        660
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "",
+          "name": "Telegram account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Inbox": {
+      "main": [
+        [
+          {
+            "node": "Normalize Telegram Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Telegram Input": {
+      "main": [
+        [
+          {
+            "node": "OpenAI Parse Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Parse Message": {
+      "main": [
+        [
+          {
+            "node": "Parse OpenAI Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse OpenAI Result": {
+      "main": [
+        [
+          {
+            "node": "Route Intent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Intent": {
+      "main": [
+        [
+          {
+            "node": "Prepare Expense Row",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Task Row",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Read Tasks for Done",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Confirm Unknown",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Expense Row": {
+      "main": [
+        [
+          {
+            "node": "Append Expense",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append Expense": {
+      "main": [
+        [
+          {
+            "node": "Confirm Expense",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Task Row": {
+      "main": [
+        [
+          {
+            "node": "Append Task",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append Task": {
+      "main": [
+        [
+          {
+            "node": "Confirm Task",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Tasks for Done": {
+      "main": [
+        [
+          {
+            "node": "Find Task to Complete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Task to Complete": {
+      "main": [
+        [
+          {
+            "node": "Update Completed Task",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Completed Task": {
+      "main": [
+        [
+          {
+            "node": "Confirm Done",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "timezone": "Asia/Dubai"
+  },
+  "versionId": "telegram-personal-assistant-inbox",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

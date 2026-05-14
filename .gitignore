@@ -1,0 +1,26 @@
+# dependencies
+node_modules/
+
+# build output
+.next/
+out/
+dist/
+
+# local runtime files
+.env
+.env.*
+!.env.example
+logs/
+.agents/
+
+# Vercel local project metadata
+.vercel/
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+desktop.ini
+*.log
+
+# n8n local database/backups should never live in the app repo
+.n8n/

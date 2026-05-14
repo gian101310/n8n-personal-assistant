@@ -1,0 +1,186 @@
+{
+  "id": "telegram-personal-assistant-daily-summary-supabase",
+  "name": "Telegram Personal Assistant - Daily Summary Supabase",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "daysInterval": 1,
+              "triggerAtHour": 21,
+              "triggerAtMinute": 0
+            }
+          ]
+        }
+      },
+      "id": "daily-summary-trigger",
+      "name": "Every Day 9 PM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://uxdueryjbfzfvyznxgax.supabase.co/rest/v1/assistant_dashboard_metrics?select=*",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "daily-dashboard-metrics",
+      "name": "Read Dashboard Metrics",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        520,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://uxdueryjbfzfvyznxgax.supabase.co/rest/v1/assistant_tasks?status=eq.open&select=task,due_at,priority&order=due_at.asc.nullslast&limit=8",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "daily-open-tasks",
+      "name": "Read Open Tasks",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        760,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const items = $input.all().map((item) => item.json);\nconst metrics = items.find((item) => item.today_expense_total !== undefined) || {};\nconst tasks = items.filter((item) => item.task);\nconst taskLines = tasks.map((task, index) => (index + 1) + \". \" + task.task + (task.due_at ? \" - \" + task.due_at : \"\")).join(\"\\n\");\nconst today = new Date().toISOString().slice(0, 10);\nconst text = [\n  \"Daily summary - \" + today,\n  \"\",\n  \"Expenses today: \" + Number(metrics.today_expense_total || 0).toFixed(2) + \" AED (\" + (metrics.today_expense_count || 0) + \" entries)\",\n  \"Open tasks: \" + (metrics.open_task_count || 0),\n  \"Completed today: \" + (metrics.completed_today_count || 0),\n  \"Due reminders: \" + (metrics.due_reminder_count || 0),\n  \"\",\n  taskLines || \"No open tasks.\"\n].join(\"\\n\");\nreturn [{ json: { summaryText: text } }];"
+      },
+      "id": "daily-build-summary",
+      "name": "Build Daily Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1000,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "=5379148910",
+        "text": "={{ $json.summaryText }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "daily-send-summary",
+      "name": "Send Daily Summary",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1240,
+        300
+      ],
+      "webhookId": "bdda0580-2e90-4639-af4b-89b1a5ad39a0",
+      "alwaysOutputData": false,
+      "retryOnFail": false,
+      "credentials": {
+        "telegramApi": {
+          "id": "TREgfHj7rs4L3NDE",
+          "name": "Telegram account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Every Day 9 PM": {
+      "main": [
+        [
+          {
+            "node": "Read Dashboard Metrics",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Read Open Tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Dashboard Metrics": {
+      "main": [
+        [
+          {
+            "node": "Build Daily Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Open Tasks": {
+      "main": [
+        [
+          {
+            "node": "Build Daily Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Daily Summary": {
+      "main": [
+        [
+          {
+            "node": "Send Daily Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "timezone": "Asia/Dubai"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "tags": []
+}

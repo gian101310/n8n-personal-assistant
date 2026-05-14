@@ -1,0 +1,280 @@
+{
+  "id": "telegram-personal-assistant-weekly-summary",
+  "name": "Telegram Personal Assistant - Weekly Summary",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "weeksInterval": 1,
+              "triggerAtDay": [
+                0
+              ],
+              "triggerAtHour": 19,
+              "triggerAtMinute": 0
+            }
+          ]
+        }
+      },
+      "id": "weekly-schedule",
+      "name": "Sunday 7 PM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        220,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "mode": "id",
+          "value": "162DpKJTcJROOaCVN7r5gUdOv3q1X17VvYvgMt-Du20Y"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "id",
+          "value": "gid=0"
+        },
+        "filtersUI": {},
+        "combineFilters": "AND",
+        "options": {}
+      },
+      "id": "weekly-read-expenses",
+      "name": "Read Expenses",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 3,
+      "position": [
+        460,
+        180
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LN0vszMFtIJTgcK3",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "mode": "id",
+          "value": "162DpKJTcJROOaCVN7r5gUdOv3q1X17VvYvgMt-Du20Y"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "id",
+          "value": "337884673"
+        },
+        "filtersUI": {},
+        "combineFilters": "AND",
+        "options": {}
+      },
+      "id": "weekly-read-tasks",
+      "name": "Read Tasks",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 3,
+      "position": [
+        460,
+        420
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LN0vszMFtIJTgcK3",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "numberInputs": 2
+      },
+      "id": "weekly-merge",
+      "name": "Merge Expenses and Tasks",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        720,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const items = $input.all().map((item) => item.json);\nconst oneWeekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;\nconst expenses = items.filter((row) => row.Amount !== undefined && row.Date);\nconst tasks = items.filter((row) => row.Task !== undefined);\nconst recent = expenses.filter((row) => {\n  const t = new Date(row.Date).getTime();\n  return Number.isNaN(t) || t >= oneWeekAgo;\n});\nconst byCategory = {};\nlet total = 0;\nlet highest = null;\nfor (const expense of recent) {\n  const amount = Number(expense.Amount || 0);\n  total += amount;\n  const category = expense.Category || \"Other\";\n  byCategory[category] = (byCategory[category] || 0) + amount;\n  if (!highest || amount > Number(highest.Amount || 0)) highest = expense;\n}\nconst openTasks = tasks.filter((task) => String(task.Status || \"\").toLowerCase() === \"open\");\nconst doneTasks = tasks.filter((task) => {\n  const completed = new Date(task[\"Completed At\"] || \"\").getTime();\n  return String(task.Status || \"\").toLowerCase() === \"done\" && !Number.isNaN(completed) && completed >= oneWeekAgo;\n});\nconst categories = Object.entries(byCategory)\n  .sort((a, b) => b[1] - a[1])\n  .map(([category, amount]) => category + \": \" + amount.toFixed(2) + \" AED\")\n  .join(\"\\n\");\nconst openTaskLines = openTasks.slice(0, 8).map((task) => \"- \" + task.Task + (task[\"Due At\"] ? \" (\" + task[\"Due At\"] + \")\" : \"\")).join(\"\\n\");\nconst baseSummary = [\n  \"Weekly summary\",\n  \"\",\n  \"Total spend: \" + total.toFixed(2) + \" AED\",\n  categories || \"No expenses logged this week.\",\n  highest ? \"\\nHighest: \" + (highest.Merchant || \"Unknown\") + \" - \" + Number(highest.Amount || 0).toFixed(2) + \" AED\" : \"\",\n  \"\",\n  \"Tasks completed: \" + doneTasks.length,\n  \"Open tasks: \" + openTasks.length,\n  openTaskLines || \"No open tasks.\"\n].filter(Boolean).join(\"\\n\");\nreturn [{\n  json: {\n    summaryText: baseSummary,\n    openaiBody: {\n      model: \"gpt-4.1-mini\",\n      input: [\n        {\n          role: \"system\",\n          content: [{ type: \"input_text\", text: \"You are a concise weekly review assistant. Give 3 practical recommendations based on the user's expense and task summary. No markdown table.\" }]\n        },\n        {\n          role: \"user\",\n          content: [{ type: \"input_text\", text: baseSummary }]\n        }\n      ]\n    }\n  }\n}];"
+      },
+      "id": "weekly-build-summary",
+      "name": "Build Weekly Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "=5379148910",
+        "text": "={{ $json.summaryText }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "weekly-send-summary",
+      "name": "Send Weekly Summary",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1200,
+        300
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "TREgfHj7rs4L3NDE",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/responses",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.openaiBody) }}",
+        "options": {}
+      },
+      "id": "weekly-openai-review",
+      "name": "OpenAI Weekly Review",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1200,
+        300
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "J6o0x0jPAhBqVNpn",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst summary = $(\"Build Weekly Summary\").item.json.summaryText;\nlet review = response.output_text;\nif (!review && Array.isArray(response.output)) {\n  for (const output of response.output) {\n    for (const content of output.content || []) {\n      if (content.type === \"output_text\" && content.text) review = content.text;\n    }\n  }\n}\nreturn [{ json: { summaryText: summary + \"\\n\\nAI weekly review:\\n\" + (review || \"No AI review returned.\") } }];"
+      },
+      "id": "weekly-parse-ai-review",
+      "name": "Parse Weekly AI Review",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1440,
+        300
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Sunday 7 PM": {
+      "main": [
+        [
+          {
+            "node": "Read Expenses",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Read Tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Expenses": {
+      "main": [
+        [
+          {
+            "node": "Merge Expenses and Tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Tasks": {
+      "main": [
+        [
+          {
+            "node": "Merge Expenses and Tasks",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Expenses and Tasks": {
+      "main": [
+        [
+          {
+            "node": "Build Weekly Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Weekly Summary": {
+      "main": [
+        [
+          {
+            "node": "OpenAI Weekly Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Weekly Review": {
+      "main": [
+        [
+          {
+            "node": "Parse Weekly AI Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Weekly AI Review": {
+      "main": [
+        [
+          {
+            "node": "Send Weekly Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "timezone": "Asia/Dubai"
+  },
+  "versionId": "telegram-personal-assistant-weekly-summary",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "tags": []
+}

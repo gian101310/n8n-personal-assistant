@@ -1,0 +1,208 @@
+{
+  "id": "telegram-personal-assistant-daily-summary",
+  "name": "Telegram Personal Assistant - Daily Summary",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "daysInterval": 1,
+              "triggerAtHour": 21,
+              "triggerAtMinute": 0
+            }
+          ]
+        }
+      },
+      "id": "daily-summary-trigger",
+      "name": "Every Day 9 PM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "mode": "id",
+          "value": "162DpKJTcJROOaCVN7r5gUdOv3q1X17VvYvgMt-Du20Y"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "id",
+          "value": "gid=0"
+        },
+        "combineFilters": "AND",
+        "options": {}
+      },
+      "id": "daily-read-expenses",
+      "name": "Read Expenses",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        480,
+        220
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LN0vszMFtIJTgcK3",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "mode": "id",
+          "value": "162DpKJTcJROOaCVN7r5gUdOv3q1X17VvYvgMt-Du20Y"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "id",
+          "value": "337884673"
+        },
+        "combineFilters": "AND",
+        "options": {}
+      },
+      "id": "daily-read-tasks",
+      "name": "Read Tasks",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        480,
+        380
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LN0vszMFtIJTgcK3",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "numberInputs": 2
+      },
+      "id": "daily-merge",
+      "name": "Merge Expenses and Tasks",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        720,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all().map((item) => item.json);\nconst now = new Date();\nconst today = now.toISOString().slice(0, 10);\nconst expenses = rows.filter((row) => row.Amount !== undefined && String(row.Date || \"\").slice(0, 10) === today);\nconst tasks = rows.filter((row) => row.Task !== undefined);\nconst openTasks = tasks.filter((row) => String(row.Status || \"\").toLowerCase() === \"open\");\nconst doneToday = tasks.filter((row) => String(row.Status || \"\").toLowerCase() === \"done\" && String(row[\"Completed At\"] || \"\").slice(0, 10) === today);\nconst total = expenses.reduce((sum, row) => sum + Number(row.Amount || 0), 0);\nconst byCategory = {};\nfor (const expense of expenses) {\n  const category = expense.Category || \"Other\";\n  byCategory[category] = (byCategory[category] || 0) + Number(expense.Amount || 0);\n}\nconst categories = Object.entries(byCategory)\n  .sort((a, b) => b[1] - a[1])\n  .map(([category, value]) => category + \": \" + value.toFixed(2) + \" AED\")\n  .join(\"\\n\");\nconst topTasks = openTasks.slice(0, 5).map((row, index) => (index + 1) + \". \" + row.Task + (row[\"Due At\"] ? \" - \" + row[\"Due At\"] : \"\")).join(\"\\n\");\nconst text = [\n  \"Daily summary - \" + today,\n  \"\",\n  \"Expenses: \" + expenses.length + \" entries, \" + total.toFixed(2) + \" AED\",\n  categories || \"No expenses logged today.\",\n  \"\",\n  \"Tasks completed today: \" + doneToday.length,\n  \"Open tasks: \" + openTasks.length,\n  topTasks || \"No open tasks.\"\n].join(\"\\n\");\nreturn [{ json: { summaryText: text } }];"
+      },
+      "id": "daily-build-summary",
+      "name": "Build Daily Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "=5379148910",
+        "text": "={{ $json.summaryText }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "daily-send-summary",
+      "name": "Send Daily Summary",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1200,
+        300
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "TREgfHj7rs4L3NDE",
+          "name": "Telegram account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Every Day 9 PM": {
+      "main": [
+        [
+          {
+            "node": "Read Expenses",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Read Tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Expenses": {
+      "main": [
+        [
+          {
+            "node": "Merge Expenses and Tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Tasks": {
+      "main": [
+        [
+          {
+            "node": "Merge Expenses and Tasks",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Expenses and Tasks": {
+      "main": [
+        [
+          {
+            "node": "Build Daily Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Daily Summary": {
+      "main": [
+        [
+          {
+            "node": "Send Daily Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "timezone": "Asia/Dubai"
+  },
+  "active": false,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "tags": []
+}

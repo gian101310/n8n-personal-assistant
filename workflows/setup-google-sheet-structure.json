@@ -1,0 +1,175 @@
+{
+  "id": "setup-google-sheet-structure",
+  "name": "Setup Google Sheet Structure",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://sheets.googleapis.com/v4/spreadsheets/162DpKJTcJROOaCVN7r5gUdOv3q1X17VvYvgMt-Du20Y:batchUpdate",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={\"requests\":[{\"addSheet\":{\"properties\":{\"title\":\"Logs\"}}}]}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "create-logs-tab",
+      "name": "Create Logs Tab",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        480,
+        300
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LN0vszMFtIJTgcK3",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "https://sheets.googleapis.com/v4/spreadsheets/162DpKJTcJROOaCVN7r5gUdOv3q1X17VvYvgMt-Du20Y/values/Expenses!A1:K1?valueInputOption=RAW",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={\"values\":[[\"Date\",\"Merchant\",\"Amount\",\"Currency\",\"Category\",\"Payment Method\",\"Card\",\"Notes\",\"Source\",\"Confidence\",\"Created At\"]]}",
+        "options": {}
+      },
+      "id": "set-expense-headers",
+      "name": "Set Expense Headers",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        720,
+        180
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LN0vszMFtIJTgcK3",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "https://sheets.googleapis.com/v4/spreadsheets/162DpKJTcJROOaCVN7r5gUdOv3q1X17VvYvgMt-Du20Y/values/Tasks!A1:I1?valueInputOption=RAW",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={\"values\":[[\"Task ID\",\"Task\",\"Type\",\"Status\",\"Priority\",\"Due At\",\"Notes\",\"Created At\",\"Completed At\"]]}",
+        "options": {}
+      },
+      "id": "set-task-headers",
+      "name": "Set Task Headers",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        720,
+        300
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LN0vszMFtIJTgcK3",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "https://sheets.googleapis.com/v4/spreadsheets/162DpKJTcJROOaCVN7r5gUdOv3q1X17VvYvgMt-Du20Y/values/Logs!A1:J1?valueInputOption=RAW",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={\"values\":[[\"Timestamp\",\"Workflow\",\"Chat ID\",\"Raw Input\",\"Intent\",\"Parsed JSON\",\"Status\",\"Message\",\"Missing Fields\",\"Execution Source\"]]}",
+        "options": {}
+      },
+      "id": "set-log-headers",
+      "name": "Set Log Headers",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        720,
+        420
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LN0vszMFtIJTgcK3",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Create Logs Tab",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Logs Tab": {
+      "main": [
+        [
+          {
+            "node": "Set Expense Headers",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Set Task Headers",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Set Log Headers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "timezone": "Asia/Dubai"
+  },
+  "versionId": "setup-google-sheet-structure",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

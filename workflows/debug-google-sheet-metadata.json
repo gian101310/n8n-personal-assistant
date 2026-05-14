@@ -1,0 +1,63 @@
+{
+  "id": "debug-google-sheet-metadata",
+  "name": "Debug Google Sheet Metadata",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        260,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://sheets.googleapis.com/v4/spreadsheets/162DpKJTcJROOaCVN7r5gUdOv3q1X17VvYvgMt-Du20Y?fields=properties.title,sheets.properties.title,sheets.properties.sheetId",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "options": {}
+      },
+      "id": "sheet-metadata",
+      "name": "Sheet Metadata",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        500,
+        300
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LN0vszMFtIJTgcK3",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Sheet Metadata",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "timezone": "Asia/Dubai"
+  },
+  "versionId": "debug-google-sheet-metadata",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}
