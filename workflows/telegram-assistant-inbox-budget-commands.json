@@ -1,6 +1,6 @@
 [
   {
-    "updatedAt": "2026-05-14T16:12:44.008Z",
+    "updatedAt": "2026-05-14T16:39:36.386Z",
     "createdAt": "2026-05-13T22:04:17.679Z",
     "id": "telegram-personal-assistant-inbox-budget-commands",
     "name": "Telegram Personal Assistant - Inbox Budget Commands",
@@ -491,11 +491,15 @@
             "id": "TREgfHj7rs4L3NDE",
             "name": "Telegram account"
           }
-        }
+        },
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 3000,
+        "continueOnFail": true
       },
       {
         "parameters": {
-          "jsCode": "const item = $input.first();\nconst binary = item.binary || {};\nconst data = binary.data;\nif (data) {\n  data.fileName = \"telegram-voice.ogg\";\n  data.fileExtension = \"ogg\";\n  data.mimeType = \"audio/ogg\";\n}\nreturn [{ json: item.json, binary }];"
+          "jsCode": "const item = $input.first();\nconst original = $(\"Normalize Telegram Input\").item.json;\nconst binary = item.binary || {};\nconst data = binary.data;\nconst errorMessage = item.json?.error?.message || item.json?.message || \"\";\n\nif (errorMessage || !data) {\n  return [{\n    json: {\n      ...original,\n      source: \"telegram_voice\",\n      voiceProcessingError: true,\n      confirmation: \"I received your voice note, but I could not download the audio from Telegram. Please resend it or type the message.\"\n    }\n  }];\n}\n\ndata.fileName = \"telegram-voice.ogg\";\ndata.fileExtension = \"ogg\";\ndata.mimeType = \"audio/ogg\";\nreturn [{ json: item.json, binary }];"
         },
         "id": "assistant-prepare-voice-file",
         "name": "Prepare Voice File",
@@ -553,11 +557,15 @@
             "id": "J6o0x0jPAhBqVNpn",
             "name": "OpenAI account"
           }
-        }
+        },
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 3000,
+        "continueOnFail": true
       },
       {
         "parameters": {
-          "jsCode": "const transcription = $input.first().json || {};\nconst original = $(\"Normalize Telegram Input\").item.json;\nconst transcript = String(transcription.text || \"\").trim();\nconst openaiBody = JSON.parse(JSON.stringify(original.openaiBody));\nconst userMessage = openaiBody.input.find((entry) => entry.role === \"user\");\nif (userMessage?.content?.[0]) {\n  userMessage.content[0].text = transcript || \"Voice message could not be transcribed. Ask for clarification.\";\n}\nreturn [{\n  json: {\n    ...original,\n    source: \"telegram_voice\",\n    originalText: transcript,\n    voiceTranscript: transcript,\n    transcriptionModel: \"gpt-4o-mini-transcribe\",\n    openaiBody\n  }\n}];"
+          "jsCode": "const transcription = $input.first().json || {};\nconst original = $(\"Normalize Telegram Input\").item.json;\nconst errorMessage = transcription.error?.message || transcription.message || \"\";\nconst transcript = String(transcription.text || \"\").trim();\n\nif (errorMessage || !transcript) {\n  return [{\n    json: {\n      ...original,\n      source: \"telegram_voice\",\n      voiceProcessingError: true,\n      voiceTranscript: transcript,\n      transcriptionModel: \"gpt-4o-mini-transcribe\",\n      confirmation: \"I received your voice note, but I could not transcribe it clearly. Please resend a clearer voice note or type the message.\"\n    }\n  }];\n}\n\nconst openaiBody = JSON.parse(JSON.stringify(original.openaiBody));\nconst userMessage = openaiBody.input.find((entry) => entry.role === \"user\");\nif (userMessage?.content?.[0]) {\n  userMessage.content[0].text = transcript;\n}\nreturn [{\n  json: {\n    ...original,\n    source: \"telegram_voice\",\n    originalText: transcript,\n    voiceTranscript: transcript,\n    transcriptionModel: \"gpt-4o-mini-transcribe\",\n    openaiBody\n  }\n}];"
         },
         "id": "assistant-apply-voice-transcript",
         "name": "Apply Voice Transcript",
@@ -1636,6 +1644,60 @@
           940,
           -980
         ]
+      },
+      {
+        "parameters": {
+          "mode": "expression",
+          "output": "={{ $json.voiceProcessingError ? 1 : 0 }}"
+        },
+        "id": "assistant-route-voice-file",
+        "name": "Route Voice File",
+        "type": "n8n-nodes-base.switch",
+        "typeVersion": 3.2,
+        "position": [
+          1180,
+          180
+        ]
+      },
+      {
+        "parameters": {
+          "mode": "expression",
+          "output": "={{ $json.voiceProcessingError ? 1 : 0 }}"
+        },
+        "id": "assistant-route-voice-transcript",
+        "name": "Route Voice Transcript",
+        "type": "n8n-nodes-base.switch",
+        "typeVersion": 3.2,
+        "position": [
+          1420,
+          180
+        ]
+      },
+      {
+        "parameters": {
+          "resource": "message",
+          "operation": "sendMessage",
+          "chatId": "={{ $('Normalize Telegram Input').item.json.chatId || '5379148910' }}",
+          "text": "={{ $json.confirmation || 'I received your voice note, but I could not process it. Please resend it or type the message.' }}",
+          "additionalFields": {
+            "appendAttribution": false
+          }
+        },
+        "id": "assistant-confirm-voice-problem",
+        "name": "Confirm Voice Problem",
+        "type": "n8n-nodes-base.telegram",
+        "typeVersion": 1.2,
+        "position": [
+          1660,
+          40
+        ],
+        "webhookId": "937677cf-3466-43ef-bdf4-d562e1327122",
+        "credentials": {
+          "telegramApi": {
+            "id": "TREgfHj7rs4L3NDE",
+            "name": "Telegram account"
+          }
+        }
       }
     ],
     "connections": {
@@ -1869,7 +1931,7 @@
         "main": [
           [
             {
-              "node": "Read Parser Context",
+              "node": "Route Voice Transcript",
               "type": "main",
               "index": 0
             }
@@ -1891,7 +1953,7 @@
         "main": [
           [
             {
-              "node": "Transcribe Voice",
+              "node": "Route Voice File",
               "type": "main",
               "index": 0
             }
@@ -2397,6 +2459,42 @@
           [
             {
               "node": "Confirm Budget Command",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Route Voice File": {
+        "main": [
+          [
+            {
+              "node": "Transcribe Voice",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Confirm Voice Problem",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Route Voice Transcript": {
+        "main": [
+          [
+            {
+              "node": "Read Parser Context",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Confirm Voice Problem",
               "type": "main",
               "index": 0
             }

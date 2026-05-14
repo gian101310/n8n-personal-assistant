@@ -44,7 +44,7 @@ Needed:
 
 ## Phase 3 - Voice Support Polish
 
-Status: basic voice pipeline works, but transcription quality may vary.
+Status: voice pipeline is hardened with retry/fallback replies, but transcription quality may vary.
 
 Current:
 
@@ -52,12 +52,13 @@ Current:
 - `.oga` file is renamed to `.ogg`.
 - OpenAI transcription runs.
 - Transcript goes into the existing parser.
+- Telegram voice download and OpenAI transcription now retry before failing.
+- If voice download/transcription still fails, Telegram receives a fallback reply instead of silently ending the workflow.
 
 Needed:
 
 - Test more voice samples.
 - If transcription is weak, switch from `gpt-4o-mini-transcribe` to `gpt-4o-transcribe`.
-- Add fallback message when transcript is too short or unclear.
 - Consider keeping voice lower priority because text is reliable.
 
 ## Phase 4 - Memory And Preferences

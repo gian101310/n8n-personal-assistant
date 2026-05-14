@@ -134,6 +134,8 @@ Added to `Telegram Personal Assistant - Inbox`:
 - OpenAI `gpt-4o-mini-transcribe` transcription node
 - transcript handoff into the existing expense/task parser
 - voice transcript logging through the existing Supabase log branch
+- retry handling for Telegram voice download and OpenAI transcription
+- fallback Telegram replies when a voice note cannot be downloaded or transcribed
 
 Manual test needed:
 
