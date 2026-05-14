@@ -62,7 +62,7 @@ Needed:
 
 ## Phase 4 - Memory And Preferences
 
-Status: parser preferences and memory retrieval are built, imported inactive, and partly verified.
+Status: memory commands, parser preferences, embeddings, and recall helpers are built, imported inactive, and partly verified.
 
 Current:
 
@@ -74,8 +74,12 @@ Current:
 - pgvector enabled.
 - `assistant.preferences` now includes a `parser_context` row with category defaults and card aliases.
 - `public.assistant_match_memories(...)` RPC exists for service-role semantic memory retrieval without exposing raw vectors.
+- `public.assistant_create_memory(...)`, `public.assistant_forget_memory(...)`, and `public.assistant_recent_memories(...)` exist for Telegram memory commands.
+- `assistant.memories` has schema comments documenting natural-language note recall, including requests like "remind me everything I told you as notes to remember".
 - `Telegram Personal Assistant - Inbox Memory Preferences` is imported into local n8n as inactive.
+- `Telegram Personal Assistant - Inbox Memory Commands` is imported into local n8n as inactive.
 - The memory-aware inbox reads `parser_context` and recent memories before OpenAI parsing, then appends those hints to the parser system prompt.
+- The command workflow can save embedded notes with `text-embedding-3-small`, forget matching notes, and list remembered notes in Telegram.
 - Default currency is `AED`.
 - Default card directory:
   - debit: ADCB, ENBD, DIB, RAK, CBD
@@ -87,9 +91,8 @@ Current:
 
 Needed:
 
-- Activate the memory-aware inbox after one manual dry-run in n8n.
-- Add Telegram commands for saving memories, such as `remember Costa is Food` and `forget Costa category`.
-- Generate embeddings when memories are saved.
+- Activate `Telegram Personal Assistant - Inbox Memory Commands` after one manual dry-run in n8n.
+- Live-test `remember Costa is Food`, `forget Costa category`, and `remind me everything I told you as notes to remember`.
 - Switch the inbox from recent-memory retrieval to `assistant_match_memories(...)` once embeddings are populated.
 - Build recurring-payment generation workflow.
 - Add Telegram commands for setting budgets.
@@ -160,8 +163,8 @@ Needed:
 
 ## Next Recommended Work
 
-1. Manually activate and test `Telegram Personal Assistant - Inbox Memory Preferences`.
-2. Add Telegram `remember` / `forget` commands with embedding generation.
+1. Manually activate and live-test `Telegram Personal Assistant - Inbox Memory Commands`.
+2. Switch parser context retrieval from recent memories to semantic memory matching after a few real memories are saved.
 3. Build recurring expense/task generation workflows.
 4. Harden receipts with low-confidence pending review.
 5. Add dashboard edit/delete controls for budgets and expenses.

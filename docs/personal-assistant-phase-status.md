@@ -51,11 +51,13 @@ Defaults:
 - budget tracker is enabled with `assistant.budgets`
 - new card names saved on expenses auto-add to the card directory
 - memory retrieval RPC: `public.assistant_match_memories(...)`
+- memory command RPCs: `public.assistant_create_memory(...)`, `public.assistant_forget_memory(...)`, `public.assistant_recent_memories(...)`
 
 Imported but not yet active:
 
 - `Telegram Personal Assistant - Inbox Supabase`
 - `Telegram Personal Assistant - Inbox Memory Preferences`
+- `Telegram Personal Assistant - Inbox Memory Commands`
 - `Telegram Personal Assistant - Daily Summary Supabase`
 - `Telegram Personal Assistant - Reminder Sender Supabase`
 
@@ -94,15 +96,28 @@ Added:
 
 - Supabase `assistant.preferences` row `parser_context` with default currency, category defaults, and card aliases.
 - Supabase RPC `public.assistant_match_memories(...)`, executable by `service_role`, for pgvector cosine memory lookup.
+- Supabase RPCs for memory commands:
+  - `public.assistant_create_memory(...)`
+  - `public.assistant_forget_memory(...)`
+  - `public.assistant_recent_memories(...)`
+- Schema comments on `assistant.memories` documenting natural-language recall, including "remind me everything I told you as notes to remember".
 - Importable n8n workflow export `workflows/telegram-assistant-inbox-memory-preferences.json`.
+- Importable n8n workflow export `workflows/telegram-assistant-inbox-memory-commands.json`.
 - Local n8n inactive workflow `Telegram Personal Assistant - Inbox Memory Preferences`.
+- Local n8n inactive workflow `Telegram Personal Assistant - Inbox Memory Commands`.
 - Parser context injection before OpenAI parsing for both text/photo messages and transcribed voice messages.
+- Telegram memory commands:
+  - `remember Costa is Food`
+  - `note to remember: passport is in the black drawer`
+  - `forget Costa category`
+  - `what do you remember?`
+  - `remind me everything I told you as notes to remember`
+- New remembered notes are embedded with OpenAI `text-embedding-3-small` before saving to `assistant.memories`.
 
 Current limitation:
 
-- The imported memory-aware workflow is inactive until live-tested and manually activated.
-- `assistant.memories` currently has no rows, so recent-memory retrieval and semantic matching return no user memories yet.
-- Telegram `remember` / `forget` commands and automatic embedding generation are the next memory step.
+- The imported memory-command workflow is inactive until live-tested and manually activated.
+- Semantic matching is available, but the parser still reads recent memories until enough real memories exist for useful matching.
 
 ## Voice Support
 
@@ -212,7 +227,7 @@ Expected result: the bot asks for the missing amount instead of saving a bad row
 
 - Voice support needs more real-world testing with Telegram voice notes.
 - Receipt photo support is enabled through OpenAI vision for Telegram photos. Real-world accuracy should be tested with your receipts.
-- Memory and semantic search need Telegram commands plus embedding generation for new memories.
+- Memory commands need one live Telegram test before the memory-command workflow replaces the older inbox workflow.
 - Multi-agent routing can be added inside n8n after the data model stabilizes.
 
 ## Restart Command
