@@ -10,6 +10,7 @@ import type {
   LogRow,
   MonthlySpend,
   Task,
+  WeeklyReview,
 } from "./types";
 import { buildExpenseQuery, type DashboardFilters } from "./dashboard-filters";
 import { buildBudgetProgress } from "./budget-progress";
@@ -182,13 +183,14 @@ function enrichMetrics(base: DashboardMetrics, expenses: Expense[], categoryBrea
 }
 
 export async function getDashboardData(filters: DashboardFilters): Promise<DashboardData> {
-  const [metricsRows, expenses, allExpenses, cards, budgets, tasks, logs] = await Promise.all([
+  const [metricsRows, expenses, allExpenses, cards, budgets, tasks, weeklyReviews, logs] = await Promise.all([
     supabaseGet<DashboardMetrics[]>("assistant_dashboard_metrics?select=*"),
     supabaseGet<Expense[]>(buildExpenseQuery(filters, 100)),
     supabaseGet<Expense[]>("assistant_expenses?select=*&order=expense_date.desc,created_at.desc&limit=500"),
     supabaseGet<AssistantCard[]>("assistant_cards?select=*&active=eq.true&order=kind.asc,name.asc"),
     supabaseGet<Budget[]>("assistant_budgets?select=*&active=eq.true&period=eq.monthly&order=category.asc"),
     supabaseGet<Task[]>("assistant_tasks?select=*&status=eq.open&order=due_at.asc.nullslast,created_at.desc&limit=18"),
+    supabaseGet<WeeklyReview[]>("assistant_weekly_reviews?select=*&order=week_start.desc&limit=8"),
     supabaseGet<LogRow[]>(
       "assistant_logs?select=id,workflow,raw_input,intent,status,message,execution_source,created_at&order=created_at.desc&limit=18",
     ),
@@ -207,6 +209,7 @@ export async function getDashboardData(filters: DashboardFilters): Promise<Dashb
     budgets,
     budgetProgress: buildBudgetProgress(budgets, allExpenses),
     monthlySpend: buildMonthlySpend(allExpenses),
+    weeklyReviews,
     filterOptions: buildFilterOptions(allExpenses, cards),
     logs,
   };

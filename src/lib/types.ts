@@ -102,6 +102,17 @@ export type FilterOptions = {
   merchants: string[];
 };
 
+export type WeeklyReview = {
+  id: string;
+  week_start: string;
+  week_end: string;
+  expense_total: string | number;
+  completed_tasks: number;
+  pending_tasks: number;
+  review: string;
+  created_at: string;
+};
+
 export type DashboardData = {
   metrics: DashboardMetrics;
   expenses: Expense[];
@@ -112,6 +123,7 @@ export type DashboardData = {
   budgets: Budget[];
   budgetProgress: BudgetProgress[];
   monthlySpend: MonthlySpend[];
+  weeklyReviews: WeeklyReview[];
   filterOptions: FilterOptions;
   logs: LogRow[];
 };

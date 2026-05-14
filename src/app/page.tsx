@@ -1,6 +1,7 @@
 import { revalidatePath } from "next/cache";
 import {
   Activity,
+  AlertTriangle,
   ArrowDownRight,
   BarChart3,
   Check,
@@ -146,6 +147,27 @@ function CardDirectory({ cards }: { cards: { id: string; name: string; kind: str
   );
 }
 
+function BudgetAlerts({ rows }: { rows: { category: string; percentUsed: number; spent: number; limit: number; remaining: number; currency: string; isOverBudget: boolean }[] }) {
+  const warnings = rows.filter((r) => r.percentUsed >= 80);
+  if (!warnings.length) return null;
+
+  return (
+    <div className="budgetAlerts" aria-label="Budget warnings">
+      {warnings.map((row) => (
+        <div className={row.isOverBudget ? "budgetAlert over" : "budgetAlert warning"} key={row.category}>
+          <AlertTriangle size={16} />
+          <span>
+            <strong>{row.category}</strong>
+            {row.isOverBudget
+              ? ` is ${formatMoney(Math.abs(row.remaining), row.currency)} over your ${formatMoney(row.limit, row.currency)} limit`
+              : ` is at ${row.percentUsed}% — ${formatMoney(row.remaining, row.currency)} left of ${formatMoney(row.limit, row.currency)}`}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function BudgetTracker({
   rows,
   categories,
@@ -281,6 +303,8 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
             icon={<Timer size={20} />}
           />
         </section>
+
+        <BudgetAlerts rows={data.budgetProgress} />
 
         <section className="filterPanel" aria-label="Expense filters">
           <div className="filterTitle">

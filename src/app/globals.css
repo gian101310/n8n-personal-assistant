@@ -671,6 +671,42 @@ td small {
   background: var(--danger-soft);
 }
 
+.budgetAlerts {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.budgetAlert {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.budgetAlert.warning {
+  color: var(--accent-2);
+  background: rgba(242, 193, 78, 0.1);
+  border: 1px solid rgba(242, 193, 78, 0.3);
+}
+
+.budgetAlert.over {
+  color: var(--danger);
+  background: var(--danger-soft);
+  border: 1px solid rgba(251, 113, 133, 0.35);
+}
+
+.budgetAlert strong {
+  font-weight: 800;
+}
+
+.budgetAlert svg {
+  flex: 0 0 auto;
+}
+
 .empty {
   color: var(--muted);
   text-align: center;
@@ -721,16 +757,25 @@ td small {
   font-size: 13px;
 }
 
+/* ---------- Tablet (<1100px) ---------- */
+
 @media (max-width: 1100px) {
   .appShell {
     grid-template-columns: 1fr;
   }
 
   .sidebar {
-    position: static;
+    position: sticky;
+    top: 0;
+    z-index: 50;
     height: auto;
+    padding: 12px 16px;
     border-right: 0;
     border-bottom: 1px solid var(--line);
+  }
+
+  .brandBlock {
+    margin-bottom: 12px;
   }
 
   .sideNav {
@@ -759,40 +804,208 @@ td small {
   }
 }
 
+/* ---------- Phone (<720px) ---------- */
+
 @media (max-width: 720px) {
+  .sidebar {
+    padding: 10px 12px;
+    gap: 0;
+  }
+
+  .brandBlock {
+    margin-bottom: 8px;
+  }
+
+  .brandBlock span {
+    display: none;
+  }
+
+  .sideNav {
+    display: flex;
+    overflow-x: auto;
+    gap: 6px;
+    margin: 0 -12px;
+    padding: 0 12px 4px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .sideNav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .sideNav a {
+    flex: 0 0 auto;
+    min-height: 36px;
+    padding: 0 10px;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+
+  .logoutButton {
+    display: none;
+  }
+
   .dashboardShell {
-    padding: 14px;
+    padding: 12px;
   }
 
   .heroBar {
     flex-direction: column;
+    gap: 10px;
+    margin-bottom: 12px;
   }
 
   h1 {
-    font-size: 27px;
+    font-size: 22px;
   }
 
-  .metricsGrid,
-  .filterGrid,
-  .sideNav {
-    grid-template-columns: 1fr;
+  .heroCopy {
+    font-size: 13px;
+    margin-top: 4px;
+  }
+
+  .refreshButton span {
+    display: none;
+  }
+
+  .refreshButton {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    height: 36px;
+    padding: 0 10px;
+  }
+
+  .heroBar {
+    position: relative;
+  }
+
+  .metricsGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
   }
 
   .metric {
-    min-height: 98px;
+    min-height: auto;
+    padding: 12px;
+    gap: 10px;
+  }
+
+  .metricIcon {
+    width: 34px;
+    height: 34px;
+  }
+
+  .metric strong {
+    font-size: 18px;
+    margin: 4px 0 2px;
+  }
+
+  .filterPanel {
+    grid-template-columns: 1fr;
+    padding: 12px;
+    gap: 10px;
+  }
+
+  .filterTitle {
+    min-height: auto;
+  }
+
+  .filterGrid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .primaryButton,
+  .ghostButton {
+    height: 38px;
+    font-size: 14px;
   }
 
   .monthlyChart {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 8px;
-    padding: 14px 10px;
+    padding: 12px;
+    min-height: auto;
   }
 
   .monthTrack {
-    min-height: 142px;
+    min-height: 100px;
   }
 
   .monthColumn strong {
     font-size: 10px;
     white-space: normal;
+  }
+
+  .panelHeader {
+    min-height: 48px;
+    padding: 0 12px;
+  }
+
+  .taskList,
+  .bars,
+  .logList,
+  .cardDirectory {
+    padding: 8px;
+  }
+
+  .taskItem,
+  .barRow,
+  .logItem {
+    padding: 10px;
+  }
+
+  .budgetTracker {
+    padding: 8px;
+  }
+
+  .budgetForm {
+    padding: 10px;
+    gap: 8px;
+  }
+
+  .budgetRow {
+    padding: 10px;
+  }
+
+  table {
+    min-width: 600px;
+    font-size: 13px;
+  }
+
+  th,
+  td {
+    padding: 10px 12px;
+  }
+
+  .loginPanel {
+    padding: 20px;
+  }
+
+  .loginMark {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+/* ---------- Small phone (<400px) ---------- */
+
+@media (max-width: 400px) {
+  .metricsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .monthlyChart {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  h1 {
+    font-size: 19px;
+  }
+
+  .metric strong {
+    font-size: 16px;
   }
 }
