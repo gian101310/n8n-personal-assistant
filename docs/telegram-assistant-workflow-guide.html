@@ -1,0 +1,482 @@
+<!doctype html><html><head><meta charset="utf-8"><title>n8n Telegram Personal Assistant Workflow Guide</title><style>
+@page { margin: 18mm 16mm; }
+body { font-family: Arial, Helvetica, sans-serif; color:#172033; line-height:1.48; font-size:12.2px; }
+h1 { font-size:28px; margin:0 0 16px; color:#0f172a; }
+h2 { font-size:19px; margin:22px 0 8px; padding-top:4px; border-top:1px solid #d8dee9; color:#10213f; }
+h3 { font-size:15px; margin:16px 0 6px; color:#23324f; }
+p { margin:7px 0; }
+ul { margin:6px 0 10px 20px; padding:0; }
+li { margin:3px 0; }
+code { font-family: Consolas, monospace; background:#f2f5f9; padding:1px 4px; border-radius:3px; }
+pre { background:#f6f8fb; border:1px solid #d9e0ea; border-radius:6px; padding:10px 12px; overflow-wrap:anywhere; white-space:pre-wrap; font-size:11px; }
+pre code { background:transparent; padding:0; }
+</style></head><body><h1>n8n Telegram Personal Assistant Workflow Guide</h1>
+<p>This guide explains how the active n8n workflow is built and how to maintain it. It is written for someone who wants to understand the project well enough to explain it, debug it, or build a similar assistant later.</p>
+<p>Active workflow:</p>
+<ul>
+<li>Name: <code>Telegram Personal Assistant - Inbox Budget Commands</code></li>
+<li>n8n workflow ID: <code>telegram-personal-assistant-inbox-budget-commands</code></li>
+<li>Main export files:</li>
+<p>- <code>workflows/current-inbox-after-budget-commands.json</code> - <code>workflows/telegram-assistant-inbox-budget-commands.json</code></p>
+</ul>
+<h2>1. What This Workflow Does</h2>
+<p>The workflow turns Telegram messages into structured personal-assistant actions.</p>
+<p>It can handle:</p>
+<ul>
+<li>Normal text expenses, for example <code>spent 25 aed at Costa with ENBD Visa</code></li>
+<li>Uncertain expenses, for example <code>maybe spent around 20 at Costa</code></li>
+<li>Receipt photos</li>
+<li>Voice notes</li>
+<li>Tasks and reminders</li>
+<li>Task completion, for example <code>done buy printer ink</code></li>
+<li>Memory commands, for example <code>remember Costa is Food</code></li>
+<li>Budget commands, for example <code>groceries 2k</code>, <code>list budgets</code></li>
+<li>Pending confirmations using <code>confirm</code> / <code>cancel</code></li>
+<li>Undo last expense</li>
+<li>Budget warnings after saving expenses</li>
+</ul>
+<p>The core idea is simple:</p>
+<pre><code>Telegram message
+  -&gt; normalize the input
+  -&gt; ignore duplicate Telegram retries
+  -&gt; route special commands first
+  -&gt; if needed, ask OpenAI to parse the message
+  -&gt; save or update data in Supabase
+  -&gt; reply back in Telegram
+</code></pre>
+<h2>2. Main Systems Involved</h2>
+<p>The project is made from four main services.</p>
+<h3>Telegram</h3>
+<p>Telegram is the user interface. The user sends text, voice, photos, and button callbacks to the bot.</p>
+<p>Important workflow nodes:</p>
+<ul>
+<li><code>Telegram Inbox</code></li>
+<li>Telegram reply nodes such as <code>Confirm Expense</code>, <code>Confirm Budget Command</code>, <code>Confirm Unknown</code></li>
+</ul>
+<h3>n8n</h3>
+<p>n8n is the automation engine. It receives the Telegram webhook, runs the workflow nodes, calls APIs, and sends Telegram replies.</p>
+<p>n8n stores the workflow locally, and this repo keeps exported JSON copies so the workflow can be versioned in Git.</p>
+<h3>OpenAI</h3>
+<p>OpenAI is used for:</p>
+<ul>
+<li>Parsing free-form text into JSON</li>
+<li>Reading receipt photos</li>
+<li>Transcribing voice notes</li>
+<li>Creating memory embeddings</li>
+</ul>
+<p>Important workflow nodes:</p>
+<ul>
+<li><code>OpenAI Parse Message</code></li>
+<li><code>Transcribe Voice</code></li>
+<li><code>Create Memory Embedding</code></li>
+</ul>
+<h3>Supabase</h3>
+<p>Supabase stores the assistant data.</p>
+<p>It stores things like:</p>
+<ul>
+<li>Expenses</li>
+<li>Tasks</li>
+<li>Reminders</li>
+<li>Pending actions</li>
+<li>Memories</li>
+<li>Budgets</li>
+<li>Processed Telegram update IDs</li>
+</ul>
+<p>The workflow talks to Supabase through REST endpoints and RPC-style tables/views.</p>
+<h2>3. High-Level Workflow Map</h2>
+<p>Here is the workflow in plain English:</p>
+<pre><code>Telegram Inbox
+  -&gt; Normalize Telegram Input
+  -&gt; Check Telegram Update Dedupe
+     -&gt; duplicate? Reply Duplicate Telegram Update
+     -&gt; new update? Mark Telegram Update Processed
+          -&gt; Route Pending Command
+          -&gt; Prepare Callback Ack
+
+Route Pending Command
+  -&gt; confirm/cancel/undo/memory/budget commands
+  -&gt; otherwise Route Voice
+
+Route Voice
+  -&gt; voice note path
+  -&gt; photo path
+  -&gt; text path
+
+Text/photo/voice after preparation
+  -&gt; Read Parser Context
+  -&gt; Read Recent Memories
+  -&gt; Apply Memory Context
+  -&gt; OpenAI Parse Message
+  -&gt; Parse OpenAI Result
+  -&gt; Route Intent
+  -&gt; save/update in Supabase
+  -&gt; Telegram confirmation
+</code></pre>
+<p>The important design choice is that deterministic commands are handled before OpenAI. For example, <code>list budgets</code> does not need AI parsing, so the workflow routes it directly to the budget-list branch.</p>
+<h2>4. Step-by-Step Node Explanation</h2>
+<h3>Step 1: Telegram Receives the Message</h3>
+<p>Node: <code>Telegram Inbox</code></p>
+<p>This is the webhook entry point. Telegram sends updates here when the bot receives:</p>
+<ul>
+<li>Text messages</li>
+<li>Voice notes</li>
+<li>Receipt photos</li>
+<li>Callback queries from buttons</li>
+</ul>
+<p>This node also downloads binary data for media, such as voice files and photos.</p>
+<h3>Step 2: Normalize Telegram Input</h3>
+<p>Node: <code>Normalize Telegram Input</code></p>
+<p>This is one of the most important Code nodes. It converts Telegram's raw update shape into one consistent internal shape.</p>
+<p>It extracts:</p>
+<ul>
+<li><code>chatId</code></li>
+<li><code>telegramUpdateId</code></li>
+<li>Message text or caption</li>
+<li>Callback data</li>
+<li>Whether the message is text, voice, or photo</li>
+<li>Binary key for media files</li>
+<li>Budget commands</li>
+<li>Memory commands</li>
+<li>Pending commands like <code>confirm</code>, <code>cancel</code>, and <code>undo</code></li>
+<li>The first draft of the OpenAI request body</li>
+</ul>
+<p>Why this matters:</p>
+<p>Telegram messages, photos, voice notes, and callback queries all arrive in slightly different JSON shapes. Normalization gives the rest of the workflow a predictable object to work with.</p>
+<h3>Step 3: Telegram Update Deduplication</h3>
+<p>Nodes:</p>
+<ul>
+<li><code>Check Telegram Update Dedupe</code></li>
+<li><code>Route Telegram Update Dedupe</code></li>
+<li><code>Mark Telegram Update Processed</code></li>
+<li><code>Reply Duplicate Telegram Update</code></li>
+</ul>
+<p>Telegram may retry webhook delivery. Without dedupe, one message could create duplicate expenses or tasks.</p>
+<p>The workflow stores every <code>telegramUpdateId</code> in Supabase:</p>
+<pre><code>assistant.processed_telegram_updates
+public.assistant_processed_telegram_updates
+</code></pre>
+<p>If the update ID already exists, the workflow replies:</p>
+<pre><code>I already processed that Telegram update.
+</code></pre>
+<p>If it is new, processing continues.</p>
+<h3>Step 4: Callback Acknowledgement</h3>
+<p>Nodes:</p>
+<ul>
+<li><code>Prepare Callback Ack</code></li>
+<li><code>Answer Callback</code></li>
+</ul>
+<p>When the user taps an inline button in Telegram, Telegram expects the bot to acknowledge the callback. This branch does that, so Telegram does not keep showing a loading spinner.</p>
+<p>This runs alongside the real confirm/cancel handling.</p>
+<h3>Step 5: Route Pending and Direct Commands</h3>
+<p>Node: <code>Route Pending Command</code></p>
+<p>This switch sends command-style messages down direct paths before using OpenAI.</p>
+<p>Examples:</p>
+<ul>
+<li><code>confirm</code> -&gt; confirmation path</li>
+<li><code>cancel</code> -&gt; cancellation path</li>
+<li><code>undo</code> -&gt; undo last expense path</li>
+<li><code>remember ...</code> -&gt; memory creation path</li>
+<li><code>forget ...</code> -&gt; memory delete path</li>
+<li><code>show memories</code> -&gt; memory recall path</li>
+<li><code>groceries 2k</code> -&gt; budget upsert path</li>
+<li><code>list budgets</code> -&gt; budget list path</li>
+<li>no command -&gt; continue to text/photo/voice parsing</li>
+</ul>
+<p>This makes the workflow faster and safer because clear commands are handled by normal code, not AI guessing.</p>
+<h2>5. Text Expense Path</h2>
+<p>Example:</p>
+<pre><code>spent 25 aed at Costa with ENBD Visa
+</code></pre>
+<p>Flow:</p>
+<pre><code>Route Pending Command
+  -&gt; Route Voice
+  -&gt; Read Parser Context
+  -&gt; Read Recent Memories
+  -&gt; Apply Memory Context
+  -&gt; OpenAI Parse Message
+  -&gt; Parse OpenAI Result
+  -&gt; Route Intent
+  -&gt; Prepare Expense Row
+  -&gt; Append Expense
+  -&gt; Read Budget After Expense
+  -&gt; Read Monthly Spend After Expense
+  -&gt; Append Budget Warning
+  -&gt; Confirm Expense
+</code></pre>
+<p>What happens:</p>
+<p>1. OpenAI parses the text into structured JSON. 2. The workflow validates the result. 3. The expense row is prepared. 4. The expense is inserted into Supabase. 5. The current monthly category spend is checked. 6. If the user is near or over budget, the Telegram confirmation includes a warning.</p>
+<h2>6. Uncertain Expense Path</h2>
+<p>Example:</p>
+<pre><code>maybe spent around 20 at Costa
+</code></pre>
+<p>If OpenAI returns low confidence or missing fields, the workflow does not immediately save the expense.</p>
+<p>Flow:</p>
+<pre><code>Parse OpenAI Result
+  -&gt; Route Intent
+  -&gt; Route Clarify or Pending
+     -&gt; Confirm Unknown
+     -&gt; Prepare Pending Action
+     -&gt; Append Pending Action
+     -&gt; Confirm Pending Request
+</code></pre>
+<p>The pending action is saved in Supabase. The user can later reply:</p>
+<pre><code>confirm
+</code></pre>
+<p>or:</p>
+<pre><code>cancel
+</code></pre>
+<p>Safety rule:</p>
+<ul>
+<li>Button callbacks can target an exact pending action ID.</li>
+<li>Text <code>confirm</code> / <code>cancel</code> only targets the latest pending action for the same chat ID that is still pending and not expired.</li>
+</ul>
+<p>This prevents confirming an old or unrelated action.</p>
+<h2>7. Receipt Photo Path</h2>
+<p>Example:</p>
+<p>The user sends a receipt image to Telegram.</p>
+<p>Flow:</p>
+<pre><code>Telegram Inbox
+  -&gt; Normalize Telegram Input
+  -&gt; Check Telegram Update Dedupe
+  -&gt; Route Pending Command
+  -&gt; Route Voice
+  -&gt; Prepare Photo Image
+  -&gt; Read Parser Context
+  -&gt; Read Recent Memories
+  -&gt; Apply Memory Context
+  -&gt; OpenAI Parse Message
+  -&gt; Parse OpenAI Result
+  -&gt; Route Intent
+</code></pre>
+<p>Important node: <code>Prepare Photo Image</code></p>
+<p>n8n stores downloaded Telegram photos as binary files. OpenAI needs the image content as base64 or a valid image URL.</p>
+<p><code>Prepare Photo Image</code> does this:</p>
+<pre><code>n8n binary file
+  -&gt; read file buffer
+  -&gt; convert to base64
+  -&gt; attach as data:image/jpeg;base64,...
+  -&gt; send to OpenAI
+</code></pre>
+<p>Important maintenance lesson:</p>
+<p>The photo path recently broke because a later node rebuilt the OpenAI body from the older normalized payload and accidentally restored <code>filesystem-v2</code> instead of the real base64 image. The fix was to make <code>Apply Memory Context</code> start from <code>Prepare Photo Image</code> for photo messages.</p>
+<p>That is a good example of workflow debugging:</p>
+<pre><code>Find where the data is correct
+  -&gt; find where it becomes wrong
+  -&gt; fix the first node that mutates it incorrectly
+</code></pre>
+<h2>8. Voice Note Path</h2>
+<p>Flow:</p>
+<pre><code>Route Voice
+  -&gt; Download Voice
+  -&gt; Prepare Voice File
+  -&gt; Route Voice File
+  -&gt; Transcribe Voice
+  -&gt; Apply Voice Transcript
+  -&gt; Route Voice Transcript
+  -&gt; Read Parser Context
+  -&gt; Read Recent Memories
+  -&gt; Apply Memory Context
+  -&gt; OpenAI Parse Message
+</code></pre>
+<p>What happens:</p>
+<p>1. The voice file is downloaded from Telegram. 2. The file is prepared for OpenAI transcription. 3. OpenAI transcribes the audio. 4. The transcript replaces the original message text. 5. The normal text parsing path continues.</p>
+<p>If transcription fails, the workflow sends a helpful Telegram reply asking the user to resend or type the message.</p>
+<h2>9. Budget Commands</h2>
+<p>Budget commands are parsed directly in <code>Normalize Telegram Input</code>.</p>
+<p>Supported examples:</p>
+<pre><code>groceries 2k
+food limit 300 weekly
+set monthly dining cap 1500
+entertainment 1500aed
+budget food 2,000
+list budgets
+</code></pre>
+<p>Flow for setting a budget:</p>
+<pre><code>Route Pending Command
+  -&gt; Prepare Budget Upsert
+  -&gt; Upsert Budget
+  -&gt; Confirm Budget Command
+</code></pre>
+<p>Flow for listing budgets:</p>
+<pre><code>Route Pending Command
+  -&gt; Read Budgets
+  -&gt; Format Budget List
+  -&gt; Confirm Budget Command
+</code></pre>
+<p>Rules:</p>
+<ul>
+<li><code>k</code> means thousand, so <code>2k</code> becomes <code>2000</code></li>
+<li>Category text is preserved after cleanup</li>
+<li><code>weekly</code> or <code>monthly</code> can be included</li>
+<li>Default period is monthly</li>
+</ul>
+<h2>10. Budget Warning After Expense Save</h2>
+<p>After saving an expense, the workflow checks the saved category's monthly budget.</p>
+<p>Flow:</p>
+<pre><code>Append Expense
+  -&gt; Read Budget After Expense
+  -&gt; Read Monthly Spend After Expense
+  -&gt; Append Budget Warning
+  -&gt; Confirm Expense
+</code></pre>
+<p>If monthly spend is:</p>
+<ul>
+<li>80 percent or more: append a warning</li>
+<li>100 percent or more: append an over-budget warning</li>
+</ul>
+<p>The expense is still saved. The warning is informational only.</p>
+<h2>11. Memory System</h2>
+<p>The assistant can remember preferences.</p>
+<p>Examples:</p>
+<pre><code>remember Costa is Food
+show memories
+forget Costa
+</code></pre>
+<p>Memory creation flow:</p>
+<pre><code>Route Pending Command
+  -&gt; Prepare Memory Embedding
+  -&gt; Create Memory Embedding
+  -&gt; Prepare Create Memory
+  -&gt; Create Memory
+  -&gt; Confirm Memory Command
+</code></pre>
+<p>Memory recall flow:</p>
+<pre><code>Route Pending Command
+  -&gt; Read Memories for Recall
+  -&gt; Prepare Memory Recall
+  -&gt; Confirm Memory Command
+</code></pre>
+<p>Parser context flow:</p>
+<pre><code>Read Parser Context
+  -&gt; Read Recent Memories
+  -&gt; Apply Memory Context
+  -&gt; OpenAI Parse Message
+</code></pre>
+<p><code>Apply Memory Context</code> adds useful hints to the OpenAI system prompt, such as:</p>
+<ul>
+<li>Default currency</li>
+<li>Merchant category defaults</li>
+<li>Card aliases</li>
+<li>Recent memories</li>
+</ul>
+<p>This helps OpenAI parse messages more consistently without hard-coding every behavior.</p>
+<h2>12. Task and Reminder Path</h2>
+<p>Task creation flow:</p>
+<pre><code>Route Intent
+  -&gt; Prepare Task Row
+  -&gt; Append Task
+  -&gt; Confirm Task
+</code></pre>
+<p>Task completion flow:</p>
+<pre><code>Route Intent
+  -&gt; Read Tasks for Done
+  -&gt; Find Task to Complete
+  -&gt; Route Task Match
+  -&gt; Update Completed Task
+  -&gt; Confirm Done
+</code></pre>
+<p>If a task cannot be matched clearly, the workflow replies with a useful message instead of updating the wrong task.</p>
+<h2>13. Undo Last Expense</h2>
+<p>Example:</p>
+<pre><code>undo
+</code></pre>
+<p>Flow:</p>
+<pre><code>Route Pending Command
+  -&gt; Read Last Expense for Undo
+  -&gt; Prepare Undo Expense
+  -&gt; Route Undo Expense
+  -&gt; Delete Last Expense
+  -&gt; Confirm Undo Expense
+</code></pre>
+<p>The workflow reads the latest expense for the same chat/user context and deletes it if safe.</p>
+<h2>14. Supabase Tables and Views</h2>
+<p>The exact table names should be preserved because the workflow depends on them.</p>
+<p>Important storage areas:</p>
+<ul>
+<li><code>assistant_expenses</code></li>
+<li><code>assistant_tasks</code></li>
+<li><code>assistant_pending_actions</code></li>
+<li><code>assistant_memories</code></li>
+<li><code>assistant_budgets</code></li>
+<li><code>assistant_processed_telegram_updates</code></li>
+</ul>
+<p>The processed-update table exists to prevent duplicate work when Telegram retries a webhook.</p>
+<h2>15. How to Maintain This Workflow</h2>
+<h3>Rule 1: Keep Node IDs Stable</h3>
+<p>n8n workflows are JSON files. Nodes have names and IDs. When possible, preserve existing IDs so imports do not create unnecessary churn.</p>
+<h3>Rule 2: Do Not Change Working Endpoints Casually</h3>
+<p>Be careful with:</p>
+<ul>
+<li>Supabase REST URLs</li>
+<li>Supabase table/view names</li>
+<li>Credential IDs</li>
+<li>Environment variable names</li>
+<li>Telegram webhook paths</li>
+</ul>
+<p>Small changes here can break production behavior.</p>
+<h3>Rule 3: Update the Script, Then Regenerate the Workflow</h3>
+<p>Most hardening changes should go into:</p>
+<pre><code>scripts/harden-active-inbox-workflow.mjs
+</code></pre>
+<p>Then regenerate:</p>
+<pre><code>node scripts\harden-active-inbox-workflow.mjs
+</code></pre>
+<p>This keeps the exported workflow files reproducible.</p>
+<h3>Rule 4: Test Before Importing</h3>
+<p>Useful checks:</p>
+<pre><code>npm test -- --run
+node -e "JSON.parse(require('fs').readFileSync('workflows/current-inbox-after-budget-commands.json','utf8')); console.log('workflow json ok')"
+</code></pre>
+<h3>Rule 5: Import, Publish, Restart, Verify</h3>
+<p>Typical deployment commands:</p>
+<pre><code>n8n import:workflow --input=workflows\telegram-assistant-inbox-budget-commands.json
+n8n publish:workflow --id=telegram-personal-assistant-inbox-budget-commands
+.\start-n8n-with-ngrok.ps1
+</code></pre>
+<p>Then verify:</p>
+<ul>
+<li>Workflow is active in n8n</li>
+<li>Telegram webhook info is healthy</li>
+<li>Telegram test message receives a reply</li>
+<li>A real photo/voice/text test works if that path changed</li>
+</ul>
+<h2>16. How to Debug It</h2>
+<p>Use this process:</p>
+<pre><code>1. Find the latest n8n execution.
+2. Identify the failed node.
+3. Inspect that node's input and output.
+4. Trace backward until you find where the data first became wrong.
+5. Fix that source node.
+6. Add a regression test if possible.
+7. Import/publish/restart and run a live smoke test.
+</code></pre>
+<p>Common failure examples:</p>
+<ul>
+<li>No Telegram reply: check n8n execution status first.</li>
+<li>Duplicate expense: check Telegram update dedupe.</li>
+<li>Photo fails: inspect <code>Prepare Photo Image</code> and <code>Apply Memory Context</code>.</li>
+<li>Voice fails: inspect <code>Download Voice</code>, <code>Prepare Voice File</code>, and <code>Transcribe Voice</code>.</li>
+<li>Budget command misroutes: inspect budget parsing in <code>Normalize Telegram Input</code>.</li>
+<li>Confirmation affects the wrong item: inspect pending-action query filters.</li>
+</ul>
+<h2>17. How to Explain This Project in an Interview</h2>
+<p>A clear explanation:</p>
+<pre><code>I built an n8n-based Telegram personal assistant. Telegram sends messages to an n8n webhook. The workflow normalizes each update, deduplicates Telegram retries using Supabase, routes direct commands like budgets and confirmations, and uses OpenAI for unstructured text, voice transcripts, and receipt image parsing. Structured results are validated and saved to Supabase. The bot replies back in Telegram with confirmations, clarification prompts, or budget warnings. I version the workflow JSON in Git, regenerate exports from scripts, run tests, import and publish to n8n, restart the local service, and verify webhook health plus live Telegram smoke tests.
+</code></pre>
+<p>If they ask about reliability:</p>
+<pre><code>I added Telegram update deduplication, retry settings on Telegram replies, scoped pending confirmations by chat ID and expiry, and regression tests that validate critical workflow wiring.
+</code></pre>
+<p>If they ask about debugging:</p>
+<pre><code>I debug by inspecting n8n execution data node by node. For example, a receipt-photo issue was caused by a later memory-context node overwriting the prepared base64 image. I traced the image payload through the workflow, found the first mutation that reintroduced the invalid value, fixed that node, added a test, redeployed, and confirmed with a live Telegram photo.
+</code></pre>
+<h2>18. Mental Model</h2>
+<p>Think of the workflow as a small backend application drawn as boxes:</p>
+<pre><code>Controller: Telegram Inbox + Normalize Telegram Input
+Middleware: Dedupe + Callback Ack + Memory Context
+Router: Route Pending Command + Route Voice + Route Intent
+Services: OpenAI parsing/transcription + Supabase REST calls
+Database: Supabase assistant tables/views
+Response layer: Telegram confirmation nodes
+</code></pre>
+<p>That is the same architecture you would use in code. n8n just makes the control flow visual.</p>
+</body></html>
