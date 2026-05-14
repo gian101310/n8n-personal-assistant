@@ -1,6 +1,7 @@
 import "server-only";
 import type {
   AssistantCard,
+  Budget,
   BreakdownRow,
   DashboardData,
   DashboardMetrics,
@@ -11,6 +12,7 @@ import type {
   Task,
 } from "./types";
 import { buildExpenseQuery, type DashboardFilters } from "./dashboard-filters";
+import { buildBudgetProgress } from "./budget-progress";
 
 const fallbackMetrics: DashboardMetrics = {
   today_expense_total: 0,
@@ -24,6 +26,20 @@ const fallbackMetrics: DashboardMetrics = {
   completed_today_count: 0,
   due_reminder_count: 0,
 };
+
+const defaultCategories = [
+  "Food",
+  "Transport",
+  "Groceries",
+  "Bills",
+  "Shopping",
+  "Business",
+  "Health",
+  "Entertainment",
+  "Travel",
+  "Trading",
+  "Other",
+];
 
 function config() {
   const url = process.env.SUPABASE_URL;
@@ -64,6 +80,14 @@ async function supabasePatch(path: string, body: unknown): Promise<void> {
   await supabaseRequest<void>(path, {
     method: "PATCH",
     headers: { Prefer: "return=minimal" },
+    body: JSON.stringify(body),
+  });
+}
+
+async function supabasePost(path: string, body: unknown): Promise<void> {
+  await supabaseRequest<void>(path, {
+    method: "POST",
+    headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
     body: JSON.stringify(body),
   });
 }
@@ -139,7 +163,7 @@ function uniqueSorted(values: Array<string | null | undefined>) {
 
 function buildFilterOptions(expenses: Expense[], cards: AssistantCard[]): FilterOptions {
   return {
-    categories: uniqueSorted(expenses.map((expense) => expense.category)),
+    categories: uniqueSorted([...defaultCategories, ...expenses.map((expense) => expense.category)]),
     cards: uniqueSorted([...expenses.map((expense) => expense.card || expense.payment_method), ...cards.map((card) => card.name)]),
     merchants: uniqueSorted(expenses.map((expense) => expense.merchant)).slice(0, 30),
   };
@@ -158,11 +182,12 @@ function enrichMetrics(base: DashboardMetrics, expenses: Expense[], categoryBrea
 }
 
 export async function getDashboardData(filters: DashboardFilters): Promise<DashboardData> {
-  const [metricsRows, expenses, allExpenses, cards, tasks, logs] = await Promise.all([
+  const [metricsRows, expenses, allExpenses, cards, budgets, tasks, logs] = await Promise.all([
     supabaseGet<DashboardMetrics[]>("assistant_dashboard_metrics?select=*"),
     supabaseGet<Expense[]>(buildExpenseQuery(filters, 100)),
     supabaseGet<Expense[]>("assistant_expenses?select=*&order=expense_date.desc,created_at.desc&limit=500"),
     supabaseGet<AssistantCard[]>("assistant_cards?select=*&active=eq.true&order=kind.asc,name.asc"),
+    supabaseGet<Budget[]>("assistant_budgets?select=*&active=eq.true&period=eq.monthly&order=category.asc"),
     supabaseGet<Task[]>("assistant_tasks?select=*&status=eq.open&order=due_at.asc.nullslast,created_at.desc&limit=18"),
     supabaseGet<LogRow[]>(
       "assistant_logs?select=id,workflow,raw_input,intent,status,message,execution_source,created_at&order=created_at.desc&limit=18",
@@ -179,6 +204,8 @@ export async function getDashboardData(filters: DashboardFilters): Promise<Dashb
     categoryBreakdown,
     cardBreakdown,
     cards,
+    budgets,
+    budgetProgress: buildBudgetProgress(budgets, allExpenses),
     monthlySpend: buildMonthlySpend(allExpenses),
     filterOptions: buildFilterOptions(allExpenses, cards),
     logs,
@@ -194,4 +221,14 @@ export async function markTaskDone(id: string) {
 
 export async function deleteExpense(id: string) {
   await supabaseDelete(`assistant_expenses?id=eq.${encodeURIComponent(id)}`);
+}
+
+export async function saveBudget(category: string, amount: number) {
+  await supabasePost("assistant_budgets", {
+    category,
+    amount,
+    currency: "AED",
+    period: "monthly",
+    active: true,
+  });
 }

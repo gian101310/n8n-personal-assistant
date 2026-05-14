@@ -62,6 +62,29 @@ export type MonthlySpend = {
   total: number;
 };
 
+export type Budget = {
+  id: string;
+  category: string;
+  amount: string | number;
+  currency: string;
+  period: "monthly";
+  active: boolean;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type BudgetProgress = {
+  id: string;
+  category: string;
+  limit: number;
+  spent: number;
+  remaining: number;
+  currency: string;
+  percentUsed: number;
+  isOverBudget: boolean;
+};
+
 export type AssistantCard = {
   id: string;
   name: string;
@@ -86,6 +109,8 @@ export type DashboardData = {
   categoryBreakdown: BreakdownRow[];
   cardBreakdown: BreakdownRow[];
   cards: AssistantCard[];
+  budgets: Budget[];
+  budgetProgress: BudgetProgress[];
   monthlySpend: MonthlySpend[];
   filterOptions: FilterOptions;
   logs: LogRow[];

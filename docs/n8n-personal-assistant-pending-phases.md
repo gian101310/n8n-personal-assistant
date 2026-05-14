@@ -79,12 +79,13 @@ Current:
 - New card names saved on expenses are auto-added to the card directory.
 - Recurring payment placeholders exist for ADCB, ENBD, DIB, RAK, TABBY, and ETISALAT.
 - Budget tracker is saved as the next dashboard/assistant suggestion.
+- Budget tracker schema and Vercel dashboard panel are built.
 
 Needed:
 
 - Store default category preferences.
 - Build recurring-payment generation workflow.
-- Build budget tracker.
+- Add Telegram commands for setting budgets.
 - Add semantic memory with embeddings.
 - Retrieve memory before OpenAI parsing so it can infer defaults.
 
@@ -126,11 +127,12 @@ Current:
 - Admin password login.
 - Reads Supabase server-side.
 - Shows KPIs, filters, monthly chart, expenses, tasks, logs, category/card breakdown, and card directory.
+- Includes a Budget Tracker panel for monthly category limits.
 
 Needed:
 
 - Expense edit modal.
-- Budget tracker.
+- Budget edit/delete controls.
 - Task dashboard.
 - Receipt review queue.
 - AI insights page.

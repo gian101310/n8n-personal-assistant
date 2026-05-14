@@ -39,11 +39,11 @@ Done:
 - Default currency set to `AED`.
 - New cards from expenses auto-add to the card directory.
 - Recurring payment placeholders added for credit cards and ETISALAT.
+- Budget tracker schema added.
 
 Prepared:
 
 - Supabase SQL schema in `docs/supabase-schema.sql`.
-- Budget tracker saved as a suggested next feature.
 
 Still manual/future:
 
@@ -90,10 +90,11 @@ Done:
 - Dashboard spec in `docs/dashboard-spec.md`.
 - Private Vercel dashboard with admin login.
 - KPI cards, date/category/card filters, monthly chart, expense table, task list, logs, card breakdown, and card directory.
+- Budget tracker panel with monthly category limits.
 
 Still manual/future:
 
 - Add editable expense rows.
-- Add budget tracker.
+- Add budget edit/delete controls and Telegram budget commands.
 - Add receipt review queue.
 - Add AI insights page.

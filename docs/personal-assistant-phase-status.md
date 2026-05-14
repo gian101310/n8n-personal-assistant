@@ -47,7 +47,7 @@ Defaults:
 - debit cards: `ADCB Debit`, `ENBD Debit`, `DIB Debit`, `RAK Debit`, `CBD Debit`
 - credit cards: `ADCB Credit`, `ENBD Credit`, `DIB Credit`, `RAK Credit`, `TABBY Credit`
 - recurring payment placeholders: ADCB, ENBD, DIB, RAK, TABBY, ETISALAT
-- budget tracker is saved as a suggested next feature
+- budget tracker is enabled with `assistant.budgets`
 - new card names saved on expenses auto-add to the card directory
 
 Imported but not yet active:
@@ -70,7 +70,7 @@ Built and deployed:
 - Vercel dashboard at `https://n8n-personal-assistant-chi.vercel.app`
 - Server-side Supabase reads using `.env`
 - Admin password login
-- KPI cards, filters, monthly chart, expense table, task list, logs, card breakdown, and card directory
+- KPI cards, filters, monthly chart, expense table, task list, logs, card breakdown, card directory, and budget tracker
 - Task completion and expense delete actions from the dashboard
 
 Verification:
@@ -83,7 +83,7 @@ Still pending:
 
 - Live verification of Telegram voice with OpenAI transcription.
 - Expense edit modal.
-- Budget tracker.
+- Budget edit/delete controls.
 
 ## Voice Support
 

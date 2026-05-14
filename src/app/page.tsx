@@ -13,11 +13,12 @@ import {
   Sparkles,
   Timer,
   Trash2,
+  TrendingUp,
   WalletCards,
 } from "lucide-react";
 import { formatDate, formatDateTime, formatMoney, priorityLabel, statusLabel } from "@/lib/dashboard-format";
 import { filtersToSearchParams, parseDashboardFilters, periodLabels } from "@/lib/dashboard-filters";
-import { deleteExpense, getDashboardData, markTaskDone } from "@/lib/supabase-dashboard";
+import { deleteExpense, getDashboardData, markTaskDone, saveBudget } from "@/lib/supabase-dashboard";
 import { logoutAction } from "./login/actions";
 
 type DashboardPageProps = {
@@ -35,6 +36,14 @@ async function removeExpense(formData: FormData) {
   "use server";
   const id = String(formData.get("id") || "");
   if (id) await deleteExpense(id);
+  revalidatePath("/");
+}
+
+async function upsertBudget(formData: FormData) {
+  "use server";
+  const category = String(formData.get("category") || "").trim();
+  const amount = Number(formData.get("amount") || 0);
+  if (category && amount > 0) await saveBudget(category, amount);
   revalidatePath("/");
 }
 
@@ -133,6 +142,58 @@ function CardDirectory({ cards }: { cards: { id: string; name: string; kind: str
           </div>
         );
       })}
+    </div>
+  );
+}
+
+function BudgetTracker({
+  rows,
+  categories,
+}: {
+  rows: { id: string; category: string; limit: number; spent: number; remaining: number; currency: string; percentUsed: number; isOverBudget: boolean }[];
+  categories: string[];
+}) {
+  return (
+    <div className="budgetTracker">
+      <form className="budgetForm" action={upsertBudget}>
+        <label>
+          <span>Category</span>
+          <select name="category" required>
+            <option value="">Choose category</option>
+            {categories.map((category) => (
+              <option key={category} value={category}>
+                {category}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>Monthly limit</span>
+          <input name="amount" type="number" min="1" step="1" placeholder="AED" required />
+        </label>
+        <button className="primaryButton" type="submit">
+          Save
+        </button>
+      </form>
+
+      <div className="budgetList">
+        {rows.map((row) => (
+          <article className={row.isOverBudget ? "budgetRow over" : "budgetRow"} key={row.id}>
+            <div className="budgetTopline">
+              <strong>{row.category}</strong>
+              <span>{Math.max(0, row.percentUsed)}%</span>
+            </div>
+            <div className="budgetTrack">
+              <span style={{ width: `${Math.min(row.percentUsed, 100)}%` }} />
+            </div>
+            <div className="budgetAmounts">
+              <span>{formatMoney(row.spent, row.currency)} spent</span>
+              <b>{row.isOverBudget ? `${formatMoney(Math.abs(row.remaining), row.currency)} over` : `${formatMoney(row.remaining, row.currency)} left`}</b>
+            </div>
+          </article>
+        ))}
+        {rows.length === 0 ? <p className="empty block">No budgets yet. Add your first monthly category limit.</p> : null}
+      </div>
     </div>
   );
 }
@@ -406,6 +467,17 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
               <span>{data.cards.length}</span>
             </div>
             <CardDirectory cards={data.cards} />
+          </section>
+
+          <section className="panel span2">
+            <div className="panelHeader">
+              <div>
+                <h2>Budget Tracker</h2>
+                <p>Monthly category limits against Telegram expenses</p>
+              </div>
+              <TrendingUp size={18} />
+            </div>
+            <BudgetTracker rows={data.budgetProgress} categories={data.filterOptions.categories} />
           </section>
 
           <section className="panel span2" id="activity">

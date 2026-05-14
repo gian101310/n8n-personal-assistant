@@ -317,6 +317,8 @@ td small {
 
 .filterControl select,
 .filterControl input,
+.budgetForm select,
+.budgetForm input,
 .passwordField input {
   width: 100%;
   height: 42px;
@@ -327,7 +329,9 @@ td small {
 }
 
 .filterControl select,
-.filterControl input {
+.filterControl input,
+.budgetForm select,
+.budgetForm input {
   padding: 0 12px;
 }
 
@@ -545,6 +549,92 @@ td small {
   font-weight: 700;
 }
 
+.budgetTracker {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+}
+
+.budgetForm {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(160px, 0.75fr) auto;
+  gap: 10px;
+  align-items: end;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+
+.budgetForm label {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.budgetForm span {
+  color: var(--soft);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.budgetList {
+  display: grid;
+  gap: 8px;
+}
+
+.budgetRow {
+  display: grid;
+  gap: 9px;
+  padding: 12px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+
+.budgetRow.over {
+  border-color: rgba(251, 113, 133, 0.35);
+  background: var(--danger-soft);
+}
+
+.budgetTopline,
+.budgetAmounts {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.budgetTopline span,
+.budgetAmounts span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.budgetAmounts b {
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.budgetTrack {
+  height: 9px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--surface-3);
+}
+
+.budgetTrack span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+}
+
+.budgetRow.over .budgetTrack span {
+  background: var(--danger);
+}
+
 .logItem {
   display: block;
 }
@@ -658,6 +748,10 @@ td small {
 
   .filterGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .budgetForm {
+    grid-template-columns: 1fr;
   }
 
   .span2 {
