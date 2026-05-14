@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { AUTH_COOKIE } from "@/lib/auth-constants";
 
-export function proxy(request: NextRequest) {
+export default function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const sessionToken = process.env.DASHBOARD_SESSION_TOKEN || "";
   const cookieToken = request.cookies.get(AUTH_COOKIE)?.value || "";
@@ -16,5 +16,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!login|api/auth-status|_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml).*)"],
+  matcher: ["/((?!login|_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml).*)"],
 };

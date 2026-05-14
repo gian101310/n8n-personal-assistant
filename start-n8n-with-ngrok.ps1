@@ -60,7 +60,9 @@ $env:WEBHOOK_URL = $publicUrl
 $env:N8N_EDITOR_BASE_URL = "http://localhost:5678"
 $env:N8N_PROTOCOL = "http"
 $env:N8N_BLOCK_ENV_ACCESS_IN_NODE = "false"
-$env:SUPABASE_URL = if ($env:SUPABASE_URL) { $env:SUPABASE_URL } else { "https://uxdueryjbfzfvyznxgax.supabase.co" }
+if (-not $env:SUPABASE_URL) {
+    throw "SUPABASE_URL is not set. Add it to .env or set it before running this script."
+}
 
 Start-Process `
     -FilePath $N8nCmd `
