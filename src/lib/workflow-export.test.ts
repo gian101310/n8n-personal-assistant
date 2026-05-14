@@ -92,9 +92,12 @@ describe("active inbox workflow export", () => {
   test("photo messages convert n8n binary files to base64 before OpenAI", () => {
     const workflow = readWorkflow();
     const preparePhoto = node(workflow, "Prepare Photo Image");
+    const applyMemory = node(workflow, "Apply Memory Context");
 
     expect(preparePhoto.parameters.jsCode).toContain("getBinaryDataBuffer");
     expect(preparePhoto.parameters.jsCode).toContain("base64");
+    expect(applyMemory.parameters.jsCode).toContain('const photoInput = $("Prepare Photo Image").item.json');
+    expect(applyMemory.parameters.jsCode).toContain('if (photoInput?.source === "telegram_photo") original = photoInput');
     expect(workflow.connections["Route Voice"].main[1][0].node).toBe("Prepare Photo Image");
     expect(workflow.connections["Prepare Photo Image"].main[0][0].node).toBe("Read Parser Context");
   });

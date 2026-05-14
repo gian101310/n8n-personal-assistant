@@ -379,6 +379,61 @@ if (existingImage) {
 
 return [{ json: { ...json, mediaMimeType: mimeType, openaiBody }, binary }];`;
 
+const applyMemoryContextCode = String.raw`let original = $("Normalize Telegram Input").item.json;
+try {
+  const voiceInput = $("Apply Voice Transcript").item.json;
+  if (voiceInput?.voiceTranscript) original = voiceInput;
+} catch (error) {}
+try {
+  const photoInput = $("Prepare Photo Image").item.json;
+  if (photoInput?.source === "telegram_photo") original = photoInput;
+} catch (error) {}
+
+let parserContext = {};
+try {
+  parserContext = $("Read Parser Context").first().json.value || {};
+} catch (error) {}
+
+const memories = $input.all()
+  .map((item) => item.json)
+  .filter((memory) => String(memory.content || "").trim())
+  .slice(0, 8);
+
+function formatMap(title, values) {
+  const rows = Object.entries(values || {}).filter(([key, value]) => String(key).trim() && String(value).trim());
+  return rows.length ? [title, ...rows.map(([key, value]) => key + " -> " + value)] : [];
+}
+
+const lines = [
+  parserContext.default_currency ? "Default currency: " + parserContext.default_currency : "",
+  ...formatMap("Category defaults:", parserContext.category_defaults),
+  ...formatMap("Card aliases:", parserContext.card_aliases),
+  ...memories.map((memory) => "- [" + (memory.memory_type || "memory") + "] " + String(memory.content || "").trim())
+].filter(Boolean);
+
+const openaiBody = JSON.parse(JSON.stringify(original.openaiBody));
+if (lines.length) {
+  const contextPrompt = [
+    "User preferences and memories:",
+    ...lines,
+    "Use these hints only when the current Telegram message does not clearly override them."
+  ].join("\n");
+  const systemMessage = openaiBody.input.find((entry) => entry.role === "system");
+  const systemText = systemMessage?.content?.find((entry) => entry.type === "input_text");
+  if (systemText) {
+    systemText.text = systemText.text + "\n\n" + contextPrompt;
+  }
+}
+
+return [{
+  json: {
+    ...original,
+    parserContext,
+    memoryContext: memories,
+    openaiBody
+  }
+}];`;
+
 for (const workflowPath of workflowPaths) {
   const workflow = readWorkflow(workflowPath);
 
@@ -402,6 +457,7 @@ for (const workflowPath of workflowPaths) {
   findNode(workflow, "Route Pending Command").parameters.numberOutputs = 10;
   findNode(workflow, "Route Clarify or Pending").parameters.output = "={{ !$json.valid || ($json.missing_fields && $json.missing_fields.length) ? 0 : 1 }}";
   findNode(workflow, "Read Recent Memories").alwaysOutputData = true;
+  findNode(workflow, "Apply Memory Context").parameters.jsCode = applyMemoryContextCode;
 
   findNode(workflow, "Prepare Budget Upsert").parameters.jsCode = String.raw`const source = $("Normalize Telegram Input").item.json;
 const command = source.budgetCommand || {};
