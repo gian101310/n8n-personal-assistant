@@ -699,11 +699,18 @@ td small {
 }
 
 .budgetTopline,
-.budgetAmounts {
+.budgetAmounts,
+.budgetActions,
+.budgetEditForm {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
+}
+
+.budgetTopline,
+.budgetAmounts,
+.budgetActions {
+  justify-content: space-between;
 }
 
 .budgetTopline span,
@@ -734,6 +741,26 @@ td small {
 
 .budgetRow.over .budgetTrack span {
   background: var(--danger);
+}
+
+.budgetActions {
+  padding-top: 2px;
+}
+
+.budgetEditForm {
+  min-width: 0;
+  flex: 1 1 auto;
+  justify-content: flex-start;
+}
+
+.budgetEditForm input {
+  width: min(150px, 100%);
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.055);
 }
 
 .logItem {
@@ -1087,6 +1114,14 @@ td small {
 
   .budgetRow {
     padding: 10px;
+  }
+
+  .budgetActions {
+    gap: 8px;
+  }
+
+  .budgetEditForm {
+    gap: 8px;
   }
 
   table {

@@ -62,7 +62,7 @@ Needed:
 
 ## Phase 4 - Memory And Preferences
 
-Status: memory commands, parser preferences, embeddings, and recall helpers are built, imported inactive, and partly verified.
+Status: memory commands, parser preferences, embeddings, recall helpers, and budget commands are built and active in the latest inbox workflow.
 
 Current:
 
@@ -78,6 +78,7 @@ Current:
 - `assistant.memories` has schema comments documenting natural-language note recall, including requests like "remind me everything I told you as notes to remember".
 - `Telegram Personal Assistant - Inbox Memory Preferences` is imported into local n8n as inactive.
 - `Telegram Personal Assistant - Inbox Memory Commands` is imported into local n8n as inactive.
+- `Telegram Personal Assistant - Inbox Budget Commands` is imported, published, and active in local n8n, combining memory commands and budget commands.
 - The memory-aware inbox reads `parser_context` and recent memories before OpenAI parsing, then appends those hints to the parser system prompt.
 - The command workflow can save embedded notes with `text-embedding-3-small`, forget matching notes, and list remembered notes in Telegram.
 - Default currency is `AED`.
@@ -88,14 +89,18 @@ Current:
 - Recurring payment placeholders exist for ADCB, ENBD, DIB, RAK, TABBY, and ETISALAT.
 - Budget tracker is saved as the next dashboard/assistant suggestion.
 - Budget tracker schema and Vercel dashboard panel are built.
+- Telegram budget commands are implemented in the generated inbox workflow:
+  - `set Food budget 1200`
+  - `budget Groceries AED 800`
+  - `delete Food budget`
+  - `list budgets`
 
 Needed:
 
-- Activate `Telegram Personal Assistant - Inbox Memory Commands` after one manual dry-run in n8n.
+- Live-test `Telegram Personal Assistant - Inbox Budget Commands`.
 - Live-test `remember Costa is Food`, `forget Costa category`, and `remind me everything I told you as notes to remember`.
 - Switch the inbox from recent-memory retrieval to `assistant_match_memories(...)` once embeddings are populated.
 - Build recurring-payment generation workflow.
-- Add Telegram commands for setting budgets.
 
 ## Phase 5 - Recurring Expenses And Tasks
 
@@ -136,11 +141,11 @@ Current:
 - Reads Supabase server-side.
 - Shows KPIs, filters, monthly chart, expenses, tasks, logs, category/card breakdown, and card directory.
 - Includes a Budget Tracker panel for monthly category limits.
+- Budget tracker rows now support inline monthly limit edits and budget deletion.
 
 Needed:
 
 - Expense edit modal.
-- Budget edit/delete controls.
 - Task dashboard.
 - Receipt review queue.
 - AI insights page.
@@ -163,8 +168,8 @@ Needed:
 
 ## Next Recommended Work
 
-1. Manually activate and live-test `Telegram Personal Assistant - Inbox Memory Commands`.
+1. Live-test `Telegram Personal Assistant - Inbox Budget Commands` from Telegram.
 2. Switch parser context retrieval from recent memories to semantic memory matching after a few real memories are saved.
 3. Build recurring expense/task generation workflows.
 4. Harden receipts with low-confidence pending review.
-5. Add dashboard edit/delete controls for budgets and expenses.
+5. Add dashboard expense editing and a receipt review queue.

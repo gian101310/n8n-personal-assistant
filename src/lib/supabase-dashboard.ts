@@ -226,8 +226,12 @@ export async function deleteExpense(id: string) {
   await supabaseDelete(`assistant_expenses?id=eq.${encodeURIComponent(id)}`);
 }
 
+export async function deleteBudget(id: string) {
+  await supabaseDelete(`assistant_budgets?id=eq.${encodeURIComponent(id)}`);
+}
+
 export async function saveBudget(category: string, amount: number) {
-  await supabasePost("assistant_budgets", {
+  await supabasePost("assistant_budgets?on_conflict=category,period", {
     category,
     amount,
     currency: "AED",

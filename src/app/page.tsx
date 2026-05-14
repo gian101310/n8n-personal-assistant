@@ -11,6 +11,7 @@ import {
   Gauge,
   LogOut,
   RefreshCw,
+  Save,
   Search,
   ShieldCheck,
   Sparkles,
@@ -21,7 +22,7 @@ import {
 } from "lucide-react";
 import { formatDate, formatDateTime, formatMoney, priorityLabel, statusLabel } from "@/lib/dashboard-format";
 import { filtersToSearchParams, parseDashboardFilters, periodLabels } from "@/lib/dashboard-filters";
-import { deleteExpense, getDashboardData, markTaskDone, saveBudget } from "@/lib/supabase-dashboard";
+import { deleteBudget, deleteExpense, getDashboardData, markTaskDone, saveBudget } from "@/lib/supabase-dashboard";
 import { logoutAction } from "./login/actions";
 
 type DashboardPageProps = {
@@ -47,6 +48,13 @@ async function upsertBudget(formData: FormData) {
   const category = String(formData.get("category") || "").trim();
   const amount = Number(formData.get("amount") || 0);
   if (category && amount > 0) await saveBudget(category, amount);
+  revalidatePath("/");
+}
+
+async function removeBudget(formData: FormData) {
+  "use server";
+  const id = String(formData.get("id") || "");
+  if (id) await deleteBudget(id);
   revalidatePath("/");
 }
 
@@ -215,6 +223,29 @@ function BudgetTracker({
             <div className="budgetAmounts">
               <span>{formatMoney(row.spent, row.currency)} spent</span>
               <b>{row.isOverBudget ? `${formatMoney(Math.abs(row.remaining), row.currency)} over` : `${formatMoney(row.remaining, row.currency)} left`}</b>
+            </div>
+            <div className="budgetActions">
+              <form className="budgetEditForm" action={upsertBudget}>
+                <input type="hidden" name="category" value={row.category} />
+                <input
+                  name="amount"
+                  type="number"
+                  min="1"
+                  step="1"
+                  defaultValue={Math.round(row.limit)}
+                  aria-label={`Monthly ${row.category} budget`}
+                  required
+                />
+                <button className="iconButton" type="submit" title="Update budget">
+                  <Save size={15} />
+                </button>
+              </form>
+              <form action={removeBudget}>
+                <input type="hidden" name="id" value={row.id} />
+                <button className="iconButton danger" type="submit" title="Delete budget">
+                  <Trash2 size={15} />
+                </button>
+              </form>
             </div>
           </article>
         ))}

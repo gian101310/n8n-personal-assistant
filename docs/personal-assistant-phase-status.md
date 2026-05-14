@@ -4,10 +4,12 @@ Last updated: 2026-05-14, Asia/Dubai.
 
 ## Live Workflows
 
-- `Telegram Personal Assistant - Inbox`
+- `Telegram Personal Assistant - Inbox Budget Commands`
   - Telegram message/photo intake.
   - OpenAI strict JSON parsing.
   - Expenses, tasks, reminders, and completed-task commands.
+  - Memory commands for natural-language notes.
+  - Budget commands for monthly category limits.
   - Google Sheets append/update.
   - Execution logging to the `Logs` tab.
   - Clarification replies when required fields are missing.
@@ -76,7 +78,7 @@ Built and deployed:
 - Server-side Supabase reads using `.env`
 - Admin password login
 - KPI cards, filters, monthly chart, expense table, task list, logs, card breakdown, card directory, and budget tracker
-- Task completion and expense delete actions from the dashboard
+- Task completion, expense delete, budget update, and budget delete actions from the dashboard
 
 Verification:
 
@@ -88,7 +90,7 @@ Still pending:
 
 - Live verification of Telegram voice with OpenAI transcription.
 - Expense edit modal.
-- Budget edit/delete controls.
+- Receipt review queue.
 
 ## Memory And Preferences
 
@@ -112,11 +114,16 @@ Added:
   - `forget Costa category`
   - `what do you remember?`
   - `remind me everything I told you as notes to remember`
+- Telegram budget commands in the latest generated inbox:
+  - `set Food budget 1200`
+  - `budget Groceries AED 800`
+  - `delete Food budget`
+  - `list budgets`
 - New remembered notes are embedded with OpenAI `text-embedding-3-small` before saving to `assistant.memories`.
 
 Current limitation:
 
-- The imported memory-command workflow is inactive until live-tested and manually activated.
+- The latest budget-command workflow is active; memory and budget commands still need live Telegram verification.
 - Semantic matching is available, but the parser still reads recent memories until enough real memories exist for useful matching.
 
 ## Voice Support
