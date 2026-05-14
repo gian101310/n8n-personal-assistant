@@ -44,15 +44,18 @@ Created in `rtailtradr-maker's Project`:
 Defaults:
 
 - default currency: `AED`
+- parser context preference: category defaults and card aliases for the Telegram parser
 - debit cards: `ADCB Debit`, `ENBD Debit`, `DIB Debit`, `RAK Debit`, `CBD Debit`
 - credit cards: `ADCB Credit`, `ENBD Credit`, `DIB Credit`, `RAK Credit`, `TABBY Credit`
 - recurring payment placeholders: ADCB, ENBD, DIB, RAK, TABBY, ETISALAT
 - budget tracker is enabled with `assistant.budgets`
 - new card names saved on expenses auto-add to the card directory
+- memory retrieval RPC: `public.assistant_match_memories(...)`
 
 Imported but not yet active:
 
 - `Telegram Personal Assistant - Inbox Supabase`
+- `Telegram Personal Assistant - Inbox Memory Preferences`
 - `Telegram Personal Assistant - Daily Summary Supabase`
 - `Telegram Personal Assistant - Reminder Sender Supabase`
 
@@ -84,6 +87,22 @@ Still pending:
 - Live verification of Telegram voice with OpenAI transcription.
 - Expense edit modal.
 - Budget edit/delete controls.
+
+## Memory And Preferences
+
+Added:
+
+- Supabase `assistant.preferences` row `parser_context` with default currency, category defaults, and card aliases.
+- Supabase RPC `public.assistant_match_memories(...)`, executable by `service_role`, for pgvector cosine memory lookup.
+- Importable n8n workflow export `workflows/telegram-assistant-inbox-memory-preferences.json`.
+- Local n8n inactive workflow `Telegram Personal Assistant - Inbox Memory Preferences`.
+- Parser context injection before OpenAI parsing for both text/photo messages and transcribed voice messages.
+
+Current limitation:
+
+- The imported memory-aware workflow is inactive until live-tested and manually activated.
+- `assistant.memories` currently has no rows, so recent-memory retrieval and semantic matching return no user memories yet.
+- Telegram `remember` / `forget` commands and automatic embedding generation are the next memory step.
 
 ## Voice Support
 
@@ -191,11 +210,9 @@ Expected result: the bot asks for the missing amount instead of saving a bad row
 
 ## Manual Items Still Needed Later
 
-- Voice support needs Telegram file download plus Whisper transcription. The current workflow detects voice input, but does not yet transcribe it.
+- Voice support needs more real-world testing with Telegram voice notes.
 - Receipt photo support is enabled through OpenAI vision for Telegram photos. Real-world accuracy should be tested with your receipts.
-- Supabase needs a Supabase project before the Sheets database can be migrated.
-- Memory and semantic search need a database table plus embeddings storage.
-- Dashboard needs a hosting choice. Good options: Vercel for a lightweight web dashboard, or Supabase + Vercel when the database phase starts.
+- Memory and semantic search need Telegram commands plus embedding generation for new memories.
 - Multi-agent routing can be added inside n8n after the data model stabilizes.
 
 ## Restart Command

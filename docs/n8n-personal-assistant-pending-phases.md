@@ -62,7 +62,7 @@ Needed:
 
 ## Phase 4 - Memory And Preferences
 
-Status: database tables exist.
+Status: parser preferences and memory retrieval are built, imported inactive, and partly verified.
 
 Current:
 
@@ -72,6 +72,10 @@ Current:
 - `assistant.memories`
 - `assistant.cards`
 - pgvector enabled.
+- `assistant.preferences` now includes a `parser_context` row with category defaults and card aliases.
+- `public.assistant_match_memories(...)` RPC exists for service-role semantic memory retrieval without exposing raw vectors.
+- `Telegram Personal Assistant - Inbox Memory Preferences` is imported into local n8n as inactive.
+- The memory-aware inbox reads `parser_context` and recent memories before OpenAI parsing, then appends those hints to the parser system prompt.
 - Default currency is `AED`.
 - Default card directory:
   - debit: ADCB, ENBD, DIB, RAK, CBD
@@ -83,11 +87,12 @@ Current:
 
 Needed:
 
-- Store default category preferences.
+- Activate the memory-aware inbox after one manual dry-run in n8n.
+- Add Telegram commands for saving memories, such as `remember Costa is Food` and `forget Costa category`.
+- Generate embeddings when memories are saved.
+- Switch the inbox from recent-memory retrieval to `assistant_match_memories(...)` once embeddings are populated.
 - Build recurring-payment generation workflow.
 - Add Telegram commands for setting budgets.
-- Add semantic memory with embeddings.
-- Retrieve memory before OpenAI parsing so it can infer defaults.
 
 ## Phase 5 - Recurring Expenses And Tasks
 
@@ -155,8 +160,8 @@ Needed:
 
 ## Next Recommended Work
 
-1. Test `cancel` and callback acknowledgement.
-2. Add `undo last expense` / correction commands.
-3. Harden receipts.
-4. Build memory/preferences.
-5. Later, rebuild dashboard properly on Vercel.
+1. Manually activate and test `Telegram Personal Assistant - Inbox Memory Preferences`.
+2. Add Telegram `remember` / `forget` commands with embedding generation.
+3. Build recurring expense/task generation workflows.
+4. Harden receipts with low-confidence pending review.
+5. Add dashboard edit/delete controls for budgets and expenses.
