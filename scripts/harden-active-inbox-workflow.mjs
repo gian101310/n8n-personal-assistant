@@ -337,6 +337,11 @@ for (const workflowPath of workflowPaths) {
     if (current.type === "n8n-nodes-base.telegram" && ["=5379148910", "5379148910"].includes(current.parameters?.chatId)) {
       current.parameters.chatId = SAFE_CHAT_ID;
     }
+    if (current.type === "n8n-nodes-base.telegram" && current.parameters?.chatId) {
+      current.retryOnFail = true;
+      current.maxTries = 3;
+      current.waitBetweenTries = 2000;
+    }
   }
 
   findNode(workflow, "Read Pending for Confirm").parameters.url =

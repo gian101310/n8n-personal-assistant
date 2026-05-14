@@ -26,6 +26,17 @@ describe("active inbox workflow export", () => {
     }
   });
 
+  test("Telegram reply nodes retry transient send failures", () => {
+    const workflow = readWorkflow();
+    const replyNodes = workflow.nodes.filter((item: any) => item.type === "n8n-nodes-base.telegram" && item.parameters?.chatId);
+
+    expect(replyNodes.length).toBeGreaterThan(0);
+    for (const replyNode of replyNodes) {
+      expect(replyNode.retryOnFail).toBe(true);
+      expect(replyNode.maxTries).toBeGreaterThanOrEqual(3);
+    }
+  });
+
   test("normalization has one voice key pair and captures update ids", () => {
     const workflow = readWorkflow();
     const jsCode = node(workflow, "Normalize Telegram Input").parameters.jsCode;
