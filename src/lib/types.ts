@@ -1,6 +1,11 @@
 export type DashboardMetrics = {
   today_expense_total: string | number | null;
   today_expense_count: number | null;
+  filtered_expense_total?: string | number | null;
+  filtered_expense_count?: number | null;
+  average_expense?: string | number | null;
+  top_category?: string | null;
+  top_card?: string | null;
   open_task_count: number | null;
   completed_today_count: number | null;
   due_reminder_count: number | null;
@@ -52,12 +57,24 @@ export type LogRow = {
   created_at: string;
 };
 
+export type MonthlySpend = {
+  label: string;
+  total: number;
+};
+
+export type FilterOptions = {
+  categories: string[];
+  cards: string[];
+  merchants: string[];
+};
+
 export type DashboardData = {
   metrics: DashboardMetrics;
   expenses: Expense[];
   tasks: Task[];
   categoryBreakdown: BreakdownRow[];
   cardBreakdown: BreakdownRow[];
+  monthlySpend: MonthlySpend[];
+  filterOptions: FilterOptions;
   logs: LogRow[];
 };
-
