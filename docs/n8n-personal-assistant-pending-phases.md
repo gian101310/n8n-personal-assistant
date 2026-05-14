@@ -17,12 +17,13 @@ Current:
 - Confirm/cancel reads ignore expired pending actions.
 - New confirm/cancel button taps arrive as normal Telegram text messages, avoiding callback-query delivery issues.
 - Pending messages show merchant, amount, category, card/payment method, and notes when available.
+- `undo last expense`, `delete last expense`, and `remove last expense` are wired as Telegram commands.
 
 Needed:
 
 - Test `cancel`.
 - Test reply-keyboard `cancel` in Telegram after the latest polish.
-- Add an `undo last expense` command for accidental saves or duplicate tests.
+- Live-test `undo last expense` from Telegram.
 
 ## Phase 2 - Receipt Hardening
 

@@ -103,11 +103,13 @@ Added:
 - Inline callback-query wiring is still present for old inline messages, but new prompts avoid callback-query delivery issues.
 - Pending confirmations show key details, including card/payment method when available.
 - Pending actions are read only while unexpired.
+- Telegram commands `undo last expense`, `delete last expense`, and `remove last expense` delete the newest saved expense and reply with the removed item.
 
 Current limitation:
 
 - High-confidence text expenses/tasks still save immediately unless uncertainty words are present.
 - `cancel` still needs one more live Telegram test after the reply-keyboard switch.
+- `undo last expense` needs one live Telegram test.
 
 ## Google Sheet Tabs
 
