@@ -8,9 +8,11 @@ import {
   CircleDollarSign,
   ClipboardList,
   Filter,
+  Gauge,
   LogOut,
   RefreshCw,
   Search,
+  ShieldCheck,
   Sparkles,
   Timer,
   Trash2,
@@ -53,14 +55,16 @@ function MetricCard({
   value,
   detail,
   icon,
+  tone = "neutral",
 }: {
   label: string;
   value: string | number;
   detail: string;
   icon: React.ReactNode;
+  tone?: "neutral" | "good" | "warning";
 }) {
   return (
-    <section className="metric">
+    <section className={`metric ${tone}`}>
       <div className="metricIcon">{icon}</div>
       <div>
         <p>{label}</p>
@@ -160,7 +164,7 @@ function BudgetAlerts({ rows }: { rows: { category: string; percentUsed: number;
             <strong>{row.category}</strong>
             {row.isOverBudget
               ? ` is ${formatMoney(Math.abs(row.remaining), row.currency)} over your ${formatMoney(row.limit, row.currency)} limit`
-              : ` is at ${row.percentUsed}% — ${formatMoney(row.remaining, row.currency)} left of ${formatMoney(row.limit, row.currency)}`}
+              : ` is at ${row.percentUsed}% - ${formatMoney(row.remaining, row.currency)} left of ${formatMoney(row.limit, row.currency)}`}
           </span>
         </div>
       ))}
@@ -225,6 +229,10 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const data = await getDashboardData(filters);
   const { metrics } = data;
   const activeParams = filtersToSearchParams(filters).toString();
+  const budgetAtRisk = data.budgetProgress.filter((row) => row.percentUsed >= 80).length;
+  const budgetLimitTotal = data.budgetProgress.reduce((sum, row) => sum + Number(row.limit || 0), 0);
+  const budgetSpentTotal = data.budgetProgress.reduce((sum, row) => sum + Number(row.spent || 0), 0);
+  const latestExpense = data.expenses[0];
 
   return (
     <main className="appShell">
@@ -234,8 +242,8 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
             <Sparkles size={22} />
           </div>
           <div>
-            <strong>n8n PA</strong>
-            <span>Private Command Center</span>
+            <strong>Assistant OS</strong>
+            <span>Finance Command Center</span>
           </div>
         </div>
         <nav className="sideNav">
@@ -267,9 +275,20 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       <section className="dashboardShell">
         <header className="heroBar" id="overview">
           <div>
-            <p className="eyebrow">Telegram Assistant</p>
-            <h1>Personal Finance & Task Dashboard</h1>
-            <p className="heroCopy">Live Supabase view for expenses, reminders, task flow, and assistant parsing quality.</p>
+            <p className="eyebrow">Expenses & Budget Tracker</p>
+            <h1>Premium finance cockpit for your Telegram assistant</h1>
+            <p className="heroCopy">A live Supabase operating view for spend control, budget pressure, cards, tasks, and assistant activity.</p>
+            <div className="heroStatus">
+              <span>
+                <ShieldCheck size={14} />
+                Private dashboard
+              </span>
+              <span>
+                <Gauge size={14} />
+                {budgetAtRisk ? `${budgetAtRisk} budgets need attention` : "Budgets calm"}
+              </span>
+              <span>{latestExpense ? `Latest: ${latestExpense.merchant || "Unknown"} ${formatMoney(latestExpense.amount, latestExpense.currency)}` : "No expenses yet"}</span>
+            </div>
           </div>
           <a className="refreshButton" href={activeParams ? `/?${activeParams}` : "/"} title="Refresh dashboard">
             <RefreshCw size={18} />
@@ -283,6 +302,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
             value={formatMoney(metrics.filtered_expense_total, "AED")}
             detail={`${metrics.filtered_expense_count ?? 0} expenses in view`}
             icon={<CircleDollarSign size={20} />}
+            tone="good"
           />
           <MetricCard
             label="Today spent"
@@ -297,10 +317,11 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
             icon={<ArrowDownRight size={20} />}
           />
           <MetricCard
-            label="Open tasks"
-            value={metrics.open_task_count ?? 0}
-            detail={`${metrics.due_reminder_count ?? 0} reminders due`}
+            label="Budget pressure"
+            value={budgetLimitTotal ? `${Math.round((budgetSpentTotal / budgetLimitTotal) * 100)}%` : "0%"}
+            detail={budgetLimitTotal ? `${formatMoney(budgetSpentTotal, "AED")} of ${formatMoney(budgetLimitTotal, "AED")}` : "No monthly limits yet"}
             icon={<Timer size={20} />}
+            tone={budgetAtRisk ? "warning" : "neutral"}
           />
         </section>
 
@@ -309,7 +330,10 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         <section className="filterPanel" aria-label="Expense filters">
           <div className="filterTitle">
             <Filter size={18} />
-            <strong>Filters</strong>
+            <div>
+              <strong>Control Plane</strong>
+              <span>Filter the ledger without leaving the cockpit.</span>
+            </div>
           </div>
           <form className="filterGrid">
             <label className="filterControl">
@@ -350,6 +374,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           <section className="panel chartPanel">
             <div className="panelHeader">
               <div>
+                <span className="sectionTag">Trend</span>
                 <h2>Monthly Spend</h2>
                 <p>Last six months from all tracked expenses</p>
               </div>
@@ -360,6 +385,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           <section className="panel">
             <div className="panelHeader">
               <div>
+                <span className="sectionTag">Mix</span>
                 <h2>Category Mix</h2>
                 <p>Filtered expense distribution</p>
               </div>
@@ -381,8 +407,9 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           <section className="panel span2" id="expenses">
             <div className="panelHeader">
               <div>
+                <span className="sectionTag">Ledger</span>
                 <h2>Expense Tracker</h2>
-                <p>Filtered ledger with quick delete for cleanup</p>
+                <p>Filtered transaction ledger with quick cleanup controls</p>
               </div>
               <span>{data.expenses.length}</span>
             </div>
@@ -434,6 +461,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           <section className="panel" id="tasks">
             <div className="panelHeader">
               <div>
+                <span className="sectionTag">Tasks</span>
                 <h2>Open Tasks</h2>
                 <p>Todos and reminders waiting on you</p>
               </div>
@@ -445,8 +473,8 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                   <div>
                     <strong>{task.task}</strong>
                     <p>
-                      {statusLabel(task.status)} · {priorityLabel(task.priority)}
-                      {task.due_at ? ` · ${formatDateTime(task.due_at)}` : ""}
+                      {statusLabel(task.status)} - {priorityLabel(task.priority)}
+                      {task.due_at ? ` - ${formatDateTime(task.due_at)}` : ""}
                     </p>
                   </div>
                   <form action={completeTask}>
@@ -464,6 +492,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           <section className="panel">
             <div className="panelHeader">
               <div>
+                <span className="sectionTag">Cards</span>
                 <h2>Card Spend</h2>
                 <p>Payment method concentration</p>
               </div>
@@ -485,6 +514,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           <section className="panel">
             <div className="panelHeader">
               <div>
+                <span className="sectionTag">Directory</span>
                 <h2>Card Directory</h2>
                 <p>Saved card names used by Telegram and filters</p>
               </div>
@@ -496,6 +526,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           <section className="panel span2">
             <div className="panelHeader">
               <div>
+                <span className="sectionTag">Budgets</span>
                 <h2>Budget Tracker</h2>
                 <p>Monthly category limits against Telegram expenses</p>
               </div>
@@ -507,6 +538,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           <section className="panel span2" id="activity">
             <div className="panelHeader">
               <div>
+                <span className="sectionTag">Activity</span>
                 <h2>Assistant Activity</h2>
                 <p>Recent parser decisions and automation outcomes</p>
               </div>
