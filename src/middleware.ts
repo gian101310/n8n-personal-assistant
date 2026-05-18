@@ -16,5 +16,5 @@ export default function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!login|_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml).*)"],
+  matcher: ["/((?!api/telegram/webhook|login|_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml).*)"],
 };

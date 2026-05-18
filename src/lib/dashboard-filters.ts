@@ -6,6 +6,9 @@ export type DashboardFilters = {
   card: string;
   merchant: string;
   q: string;
+  from: string;
+  to: string;
+  activityType: string;
 };
 
 export const periodLabels: Record<DashboardPeriod, string> = {
@@ -31,6 +34,9 @@ export function parseDashboardFilters(input: Record<string, string | string[] | 
     card: valueFromParam(input.card).trim(),
     merchant: valueFromParam(input.merchant).trim(),
     q: valueFromParam(input.q).trim(),
+    from: valueFromParam(input.from).trim(),
+    to: valueFromParam(input.to).trim(),
+    activityType: valueFromParam(input.activityType).trim(),
   };
 }
 
@@ -63,7 +69,12 @@ export function buildExpenseQuery(filters: DashboardFilters, limit = 100) {
   const parts = ["select=*", "order=expense_date.desc,created_at.desc", `limit=${limit}`];
   const range = dateRangeForPeriod(filters.period);
 
-  if (range.from) parts.push(`expense_date=gte.${range.from}`);
+  if (filters.from) {
+    parts.push(`expense_date=gte.${encodeURIComponent(filters.from)}`);
+  } else if (range.from) {
+    parts.push(`expense_date=gte.${range.from}`);
+  }
+  if (filters.to) parts.push(`expense_date=lte.${encodeURIComponent(filters.to)}`);
   appendFilter(parts, "category", "eq", filters.category);
   appendFilter(parts, "card", "eq", filters.card);
   appendFilter(parts, "merchant", "ilike", `*${filters.merchant}*`);
@@ -83,5 +94,8 @@ export function filtersToSearchParams(filters: DashboardFilters) {
   if (filters.card) params.set("card", filters.card);
   if (filters.merchant) params.set("merchant", filters.merchant);
   if (filters.q) params.set("q", filters.q);
+  if (filters.from) params.set("from", filters.from);
+  if (filters.to) params.set("to", filters.to);
+  if (filters.activityType) params.set("activityType", filters.activityType);
   return params;
 }

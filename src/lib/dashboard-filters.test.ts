@@ -9,6 +9,9 @@ describe("dashboard filters", () => {
       card: "",
       merchant: "",
       q: "",
+      from: "",
+      to: "",
+      activityType: "",
     });
   });
 
@@ -27,11 +30,15 @@ describe("dashboard filters", () => {
       card: "ADCB Visa",
       merchant: "Costa",
       q: "coffee",
+      from: "2026-05-01",
+      to: "2026-05-14",
     });
 
     const query = buildExpenseQuery(filters, 25);
     expect(query).toContain("assistant_expenses?");
     expect(query).toContain("limit=25");
+    expect(query).toContain("expense_date=gte.2026-05-01");
+    expect(query).toContain("expense_date=lte.2026-05-14");
     expect(query).toContain("category=eq.Food");
     expect(query).toContain("card=eq.ADCB%20Visa");
     expect(query).toContain("merchant=ilike.*Costa*");

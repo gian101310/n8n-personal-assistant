@@ -2,27 +2,51 @@ import { revalidatePath } from "next/cache";
 import {
   Activity,
   AlertTriangle,
-  ArrowDownRight,
-  BarChart3,
+  Bell,
+  Bot,
+  CalendarClock,
   Check,
-  CircleDollarSign,
-  ClipboardList,
+  CreditCard,
+  FileText,
   Filter,
-  Gauge,
+  Lightbulb,
+  ListChecks,
   LogOut,
+  Pencil,
+  Plus,
   RefreshCw,
   Save,
   Search,
   ShieldCheck,
   Sparkles,
-  Timer,
   Trash2,
-  TrendingUp,
-  WalletCards,
+  Wallet,
 } from "lucide-react";
 import { formatDate, formatDateTime, formatMoney, priorityLabel, statusLabel } from "@/lib/dashboard-format";
 import { filtersToSearchParams, parseDashboardFilters, periodLabels } from "@/lib/dashboard-filters";
-import { deleteBudget, deleteExpense, getDashboardData, markTaskDone, saveBudget } from "@/lib/supabase-dashboard";
+import {
+  buildDashboardSummary,
+  deleteCreditCardBill,
+  deleteExpense,
+  deleteIncomeStream,
+  deleteNote,
+  deleteReminder,
+  deleteSubscription,
+  deleteTodo,
+  getDashboardData,
+  markTaskDone,
+  regenerateAIInsights,
+  saveBudget,
+  saveCreditCardBill,
+  saveExpense,
+  saveIncomeStream,
+  saveNote,
+  saveReminder,
+  saveSubscription,
+  saveTodo,
+  snoozeReminder,
+} from "@/lib/supabase-dashboard";
+import type { AIInsight, CreditCardBill, Expense, IncomeStream, Note, Reminder, Subscription, Todo } from "@/lib/types";
 import { logoutAction } from "./login/actions";
 
 type DashboardPageProps = {
@@ -36,10 +60,109 @@ async function completeTask(formData: FormData) {
   revalidatePath("/");
 }
 
+async function upsertExpense(formData: FormData) {
+  "use server";
+  await saveExpense(formData);
+  revalidatePath("/");
+}
+
 async function removeExpense(formData: FormData) {
   "use server";
   const id = String(formData.get("id") || "");
   if (id) await deleteExpense(id);
+  revalidatePath("/");
+}
+
+async function upsertIncome(formData: FormData) {
+  "use server";
+  await saveIncomeStream(formData);
+  revalidatePath("/");
+}
+
+async function removeIncome(formData: FormData) {
+  "use server";
+  const id = String(formData.get("id") || "");
+  if (id) await deleteIncomeStream(id);
+  revalidatePath("/");
+}
+
+async function upsertCreditCardBill(formData: FormData) {
+  "use server";
+  await saveCreditCardBill(formData);
+  revalidatePath("/");
+}
+
+async function removeCreditCardBill(formData: FormData) {
+  "use server";
+  const id = String(formData.get("id") || "");
+  if (id) await deleteCreditCardBill(id);
+  revalidatePath("/");
+}
+
+async function upsertSubscription(formData: FormData) {
+  "use server";
+  await saveSubscription(formData);
+  revalidatePath("/");
+}
+
+async function removeSubscription(formData: FormData) {
+  "use server";
+  const id = String(formData.get("id") || "");
+  if (id) await deleteSubscription(id);
+  revalidatePath("/");
+}
+
+async function upsertNote(formData: FormData) {
+  "use server";
+  await saveNote(formData);
+  revalidatePath("/");
+}
+
+async function removeNote(formData: FormData) {
+  "use server";
+  const id = String(formData.get("id") || "");
+  if (id) await deleteNote(id);
+  revalidatePath("/");
+}
+
+async function upsertReminder(formData: FormData) {
+  "use server";
+  await saveReminder(formData);
+  revalidatePath("/");
+}
+
+async function removeReminder(formData: FormData) {
+  "use server";
+  const id = String(formData.get("id") || "");
+  if (id) await deleteReminder(id);
+  revalidatePath("/");
+}
+
+async function snoozeReminderAction(formData: FormData) {
+  "use server";
+  const id = String(formData.get("id") || "");
+  if (id) await snoozeReminder(id);
+  revalidatePath("/");
+}
+
+async function upsertTodo(formData: FormData) {
+  "use server";
+  await saveTodo(formData);
+  revalidatePath("/");
+}
+
+async function removeTodo(formData: FormData) {
+  "use server";
+  const id = String(formData.get("id") || "");
+  if (id) await deleteTodo(id);
+  revalidatePath("/");
+}
+
+async function refreshInsights(formData: FormData) {
+  "use server";
+  const filters = parseDashboardFilters({});
+  const data = await getDashboardData(filters);
+  await regenerateAIInsights(data);
   revalidatePath("/");
 }
 
@@ -51,26 +174,11 @@ async function upsertBudget(formData: FormData) {
   revalidatePath("/");
 }
 
-async function removeBudget(formData: FormData) {
-  "use server";
-  const id = String(formData.get("id") || "");
-  if (id) await deleteBudget(id);
-  revalidatePath("/");
+function Badge({ children, tone = "neutral" }: { children: React.ReactNode; tone?: "safe" | "watch" | "warning" | "urgent" | "neutral" }) {
+  return <span className={`badge ${tone}`}>{children}</span>;
 }
 
-function MetricCard({
-  label,
-  value,
-  detail,
-  icon,
-  tone = "neutral",
-}: {
-  label: string;
-  value: string | number;
-  detail: string;
-  icon: React.ReactNode;
-  tone?: "neutral" | "good" | "warning";
-}) {
+function MetricCard({ label, value, detail, icon, tone = "neutral" }: { label: string; value: string | number; detail: string; icon: React.ReactNode; tone?: string }) {
   return (
     <section className={`metric ${tone}`}>
       <div className="metricIcon">{icon}</div>
@@ -83,174 +191,344 @@ function MetricCard({
   );
 }
 
-function FilterSelect({
-  name,
-  label,
-  value,
-  options,
-  allLabel,
-}: {
-  name: string;
-  label: string;
-  value: string;
-  options: string[];
-  allLabel: string;
-}) {
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <label className="filterControl">
+    <label className="field">
       <span>{label}</span>
-      <select name={name} defaultValue={value}>
-        <option value="">{allLabel}</option>
-        {options.map((option) => (
-          <option key={option} value={option}>
-            {option}
-          </option>
-        ))}
-      </select>
+      {children}
     </label>
   );
 }
 
-function MonthlyChart({ rows }: { rows: { label: string; total: number }[] }) {
-  const max = Math.max(...rows.map((row) => row.total), 1);
-
+function DeleteConfirm({ id, action, label = "Delete" }: { id: string; action: (formData: FormData) => Promise<void>; label?: string }) {
   return (
-    <div className="monthlyChart" aria-label="Monthly spend chart">
-      {rows.map((row) => (
-        <div className="monthColumn" key={row.label}>
-          <div className="monthTrack">
-            <span style={{ height: `${Math.max(6, (row.total / max) * 100)}%` }} />
-          </div>
-          <strong>{formatMoney(row.total, "AED")}</strong>
-          <small>{row.label}</small>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function CardDirectory({ cards }: { cards: { id: string; name: string; kind: string; issuer: string | null; source: string }[] }) {
-  const groups = [
-    { key: "debit", label: "Debit Cards" },
-    { key: "credit", label: "Credit Cards" },
-    { key: "other", label: "Auto Added" },
-  ];
-
-  return (
-    <div className="cardDirectory">
-      {groups.map((group) => {
-        const rows = cards.filter((card) => card.kind === group.key);
-        if (!rows.length) return null;
-
-        return (
-          <div className="cardGroup" key={group.key}>
-            <h3>{group.label}</h3>
-            <div>
-              {rows.map((card) => (
-                <span className="cardPill" key={card.id} title={`${card.source}${card.issuer ? ` - ${card.issuer}` : ""}`}>
-                  {card.name}
-                </span>
-              ))}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-function BudgetAlerts({ rows }: { rows: { category: string; percentUsed: number; spent: number; limit: number; remaining: number; currency: string; isOverBudget: boolean }[] }) {
-  const warnings = rows.filter((r) => r.percentUsed >= 80);
-  if (!warnings.length) return null;
-
-  return (
-    <div className="budgetAlerts" aria-label="Budget warnings">
-      {warnings.map((row) => (
-        <div className={row.isOverBudget ? "budgetAlert over" : "budgetAlert warning"} key={row.category}>
-          <AlertTriangle size={16} />
-          <span>
-            <strong>{row.category}</strong>
-            {row.isOverBudget
-              ? ` is ${formatMoney(Math.abs(row.remaining), row.currency)} over your ${formatMoney(row.limit, row.currency)} limit`
-              : ` is at ${row.percentUsed}% - ${formatMoney(row.remaining, row.currency)} left of ${formatMoney(row.limit, row.currency)}`}
-          </span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function BudgetTracker({
-  rows,
-  categories,
-}: {
-  rows: { id: string; category: string; limit: number; spent: number; remaining: number; currency: string; percentUsed: number; isOverBudget: boolean }[];
-  categories: string[];
-}) {
-  return (
-    <div className="budgetTracker">
-      <form className="budgetForm" action={upsertBudget}>
-        <label>
-          <span>Category</span>
-          <select name="category" required>
-            <option value="">Choose category</option>
-            {categories.map((category) => (
-              <option key={category} value={category}>
-                {category}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>Monthly limit</span>
-          <input name="amount" type="number" min="1" step="1" placeholder="AED" required />
-        </label>
-        <button className="primaryButton" type="submit">
-          Save
+    <details className="confirmDelete">
+      <summary>
+        <Trash2 size={15} />
+      </summary>
+      <form action={action}>
+        <input type="hidden" name="id" value={id} />
+        <button className="dangerButton" type="submit">
+          {label}
         </button>
       </form>
+    </details>
+  );
+}
 
-      <div className="budgetList">
-        {rows.map((row) => (
-          <article className={row.isOverBudget ? "budgetRow over" : "budgetRow"} key={row.id}>
-            <div className="budgetTopline">
-              <strong>{row.category}</strong>
-              <span>{Math.max(0, row.percentUsed)}%</span>
-            </div>
-            <div className="budgetTrack">
-              <span style={{ width: `${Math.min(row.percentUsed, 100)}%` }} />
-            </div>
-            <div className="budgetAmounts">
-              <span>{formatMoney(row.spent, row.currency)} spent</span>
-              <b>{row.isOverBudget ? `${formatMoney(Math.abs(row.remaining), row.currency)} over` : `${formatMoney(row.remaining, row.currency)} left`}</b>
-            </div>
-            <div className="budgetActions">
-              <form className="budgetEditForm" action={upsertBudget}>
-                <input type="hidden" name="category" value={row.category} />
-                <input
-                  name="amount"
-                  type="number"
-                  min="1"
-                  step="1"
-                  defaultValue={Math.round(row.limit)}
-                  aria-label={`Monthly ${row.category} budget`}
-                  required
-                />
-                <button className="iconButton" type="submit" title="Update budget">
-                  <Save size={15} />
-                </button>
-              </form>
-              <form action={removeBudget}>
-                <input type="hidden" name="id" value={row.id} />
-                <button className="iconButton danger" type="submit" title="Delete budget">
-                  <Trash2 size={15} />
-                </button>
-              </form>
-            </div>
-          </article>
-        ))}
-        {rows.length === 0 ? <p className="empty block">No budgets yet. Add your first monthly category limit.</p> : null}
-      </div>
+function ExpenseEditor({ expense }: { expense?: Expense }) {
+  return (
+    <form className="editGrid" action={upsertExpense}>
+      <input type="hidden" name="id" value={expense?.id || ""} />
+      <Field label="Amount">
+        <input name="amount" type="number" min="0" step="0.01" defaultValue={expense ? Number(expense.amount) : ""} required />
+      </Field>
+      <Field label="Category">
+        <input name="category" defaultValue={expense?.category || ""} required />
+      </Field>
+      <Field label="Date">
+        <input name="expense_date" type="date" defaultValue={expense?.expense_date || new Date().toISOString().slice(0, 10)} required />
+      </Field>
+      <Field label="Merchant">
+        <input name="merchant" defaultValue={expense?.merchant || ""} required />
+      </Field>
+      <Field label="Payment method">
+        <input name="payment_method" defaultValue={expense?.payment_method || ""} />
+      </Field>
+      <Field label="Card">
+        <input name="card" defaultValue={expense?.card || ""} />
+      </Field>
+      <Field label="Status">
+        <select name="status" defaultValue={expense?.status || "posted"}>
+          <option>posted</option>
+          <option>pending</option>
+          <option>review</option>
+        </select>
+      </Field>
+      <Field label="Correction reason">
+        <input name="correction_reason" defaultValue={expense?.correction_reason || ""} placeholder="Why you edited it" />
+      </Field>
+      <label className="field wide">
+        <span>Notes</span>
+        <textarea name="notes" defaultValue={expense?.notes || ""} />
+      </label>
+      <button className="primaryButton" type="submit">
+        <Save size={15} /> Save
+      </button>
+    </form>
+  );
+}
+
+function IncomeEditor({ row }: { row?: IncomeStream }) {
+  return (
+    <form className="editGrid" action={upsertIncome}>
+      <input type="hidden" name="id" value={row?.id || ""} />
+      <Field label="Source name">
+        <input name="source_name" defaultValue={row?.source_name || ""} required />
+      </Field>
+      <Field label="Type">
+        <select name="type" defaultValue={row?.type || "Salary"}>
+          {["Salary", "Freelance", "Business", "Investment", "Other"].map((item) => (
+            <option key={item}>{item}</option>
+          ))}
+        </select>
+      </Field>
+      <Field label="Amount">
+        <input name="amount" type="number" min="0" step="0.01" defaultValue={row ? Number(row.amount) : ""} required />
+      </Field>
+      <Field label="Frequency">
+        <select name="frequency" defaultValue={row?.frequency || "Monthly"}>
+          {["Monthly", "Weekly", "One-time", "Custom"].map((item) => (
+            <option key={item}>{item}</option>
+          ))}
+        </select>
+      </Field>
+      <Field label="Expected date">
+        <input name="expected_date" type="date" defaultValue={row?.expected_date || new Date().toISOString().slice(0, 10)} required />
+      </Field>
+      <Field label="Status">
+        <select name="status" defaultValue={row?.status || "Expected"}>
+          {["Expected", "Received", "Late"].map((item) => (
+            <option key={item}>{item}</option>
+          ))}
+        </select>
+      </Field>
+      <label className="field wide">
+        <span>Notes</span>
+        <textarea name="notes" defaultValue={row?.notes || ""} />
+      </label>
+      <button className="primaryButton" type="submit">
+        <Save size={15} /> Save
+      </button>
+    </form>
+  );
+}
+
+function BillEditor({ row }: { row?: CreditCardBill }) {
+  return (
+    <form className="editGrid" action={upsertCreditCardBill}>
+      <input type="hidden" name="id" value={row?.id || ""} />
+      <Field label="Card name">
+        <input name="card_name" defaultValue={row?.card_name || ""} required />
+      </Field>
+      <Field label="Statement balance">
+        <input name="statement_balance" type="number" min="0" step="0.01" defaultValue={row ? Number(row.statement_balance) : ""} required />
+      </Field>
+      <Field label="Minimum payment">
+        <input name="minimum_payment" type="number" min="0" step="0.01" defaultValue={row ? Number(row.minimum_payment) : ""} required />
+      </Field>
+      <Field label="Due date">
+        <input name="due_date" type="date" defaultValue={row?.due_date || new Date().toISOString().slice(0, 10)} required />
+      </Field>
+      <Field label="Status">
+        <select name="payment_status" defaultValue={row?.payment_status || "Due"}>
+          {["Due", "Paid", "Overdue", "Scheduled"].map((item) => (
+            <option key={item}>{item}</option>
+          ))}
+        </select>
+      </Field>
+      <Field label="Priority">
+        <select name="priority" defaultValue={row?.priority || "Normal"}>
+          {["Low", "Normal", "High", "Urgent"].map((item) => (
+            <option key={item}>{item}</option>
+          ))}
+        </select>
+      </Field>
+      <label className="checkField">
+        <input name="autopay_enabled" type="checkbox" defaultChecked={row?.autopay_enabled || false} />
+        Autopay enabled
+      </label>
+      <label className="field wide">
+        <span>Notes</span>
+        <textarea name="notes" defaultValue={row?.notes || ""} />
+      </label>
+      <button className="primaryButton" type="submit">
+        <Save size={15} /> Save
+      </button>
+    </form>
+  );
+}
+
+function SubscriptionEditor({ row }: { row?: Subscription }) {
+  return (
+    <form className="editGrid" action={upsertSubscription}>
+      <input type="hidden" name="id" value={row?.id || ""} />
+      <Field label="Subscription">
+        <input name="subscription_name" defaultValue={row?.subscription_name || ""} required />
+      </Field>
+      <Field label="Category">
+        <input name="category" defaultValue={row?.category || ""} required />
+      </Field>
+      <Field label="Amount">
+        <input name="amount" type="number" min="0" step="0.01" defaultValue={row ? Number(row.amount) : ""} required />
+      </Field>
+      <Field label="Billing cycle">
+        <select name="billing_cycle" defaultValue={row?.billing_cycle || "Monthly"}>
+          {["Monthly", "Weekly", "Yearly", "Quarterly", "Custom"].map((item) => (
+            <option key={item}>{item}</option>
+          ))}
+        </select>
+      </Field>
+      <Field label="Next billing date">
+        <input name="next_billing_date" type="date" defaultValue={row?.next_billing_date || new Date().toISOString().slice(0, 10)} required />
+      </Field>
+      <Field label="Payment method">
+        <input name="payment_method" defaultValue={row?.payment_method || ""} required />
+      </Field>
+      <Field label="Status">
+        <select name="status" defaultValue={row?.status || "Active"}>
+          {["Active", "Paused", "Cancelled", "Review"].map((item) => (
+            <option key={item}>{item}</option>
+          ))}
+        </select>
+      </Field>
+      <label className="checkField">
+        <input name="cancel_review_flag" type="checkbox" defaultChecked={row?.cancel_review_flag || false} />
+        Review for cancel
+      </label>
+      <label className="field wide">
+        <span>Notes</span>
+        <textarea name="notes" defaultValue={row?.notes || ""} />
+      </label>
+      <button className="primaryButton" type="submit">
+        <Save size={15} /> Save
+      </button>
+    </form>
+  );
+}
+
+function NoteEditor({ row }: { row?: Note }) {
+  return (
+    <form className="editGrid" action={upsertNote}>
+      <input type="hidden" name="id" value={row?.id || ""} />
+      <Field label="Title">
+        <input name="title" defaultValue={row?.title || ""} required />
+      </Field>
+      <Field label="Priority">
+        <select name="priority" defaultValue={row?.priority || "Normal"}>
+          {["Low", "Normal", "High", "Urgent"].map((item) => (
+            <option key={item}>{item}</option>
+          ))}
+        </select>
+      </Field>
+      <Field label="Tags">
+        <input name="tags" defaultValue={(row?.tags || []).join(", ")} placeholder="comma, separated" />
+      </Field>
+      <Field label="Linked type">
+        <select name="linked_item_type" defaultValue={row?.linked_item_type || "general"}>
+          {["general", "expense", "bill", "subscription", "reminder"].map((item) => (
+            <option key={item}>{item}</option>
+          ))}
+        </select>
+      </Field>
+      <Field label="Linked ID">
+        <input name="linked_item_id" defaultValue={row?.linked_item_id || ""} />
+      </Field>
+      <label className="field wide">
+        <span>Body</span>
+        <textarea name="body" defaultValue={row?.body || ""} required />
+      </label>
+      <button className="primaryButton" type="submit">
+        <Save size={15} /> Save
+      </button>
+    </form>
+  );
+}
+
+function ReminderEditor({ row }: { row?: Reminder }) {
+  return (
+    <form className="editGrid" action={upsertReminder}>
+      <input type="hidden" name="id" value={row?.id || ""} />
+      <Field label="Title">
+        <input name="title" defaultValue={row?.title || ""} required />
+      </Field>
+      <Field label="Due date/time">
+        <input name="due_at" type="datetime-local" defaultValue={row?.due_at?.slice(0, 16) || ""} required />
+      </Field>
+      <Field label="Priority">
+        <select name="priority" defaultValue={row?.priority || "Normal"}>
+          {["Low", "Normal", "High", "Urgent"].map((item) => (
+            <option key={item}>{item}</option>
+          ))}
+        </select>
+      </Field>
+      <Field label="Status">
+        <select name="status" defaultValue={row?.status || "Pending"}>
+          {["Pending", "Done", "Snoozed", "Cancelled"].map((item) => (
+            <option key={item}>{item}</option>
+          ))}
+        </select>
+      </Field>
+      <Field label="Source">
+        <select name="source" defaultValue={row?.source || "Dashboard"}>
+          {["Dashboard", "AI", "Telegram"].map((item) => (
+            <option key={item}>{item}</option>
+          ))}
+        </select>
+      </Field>
+      <label className="field wide">
+        <span>Description</span>
+        <textarea name="description" defaultValue={row?.description || ""} />
+      </label>
+      <button className="primaryButton" type="submit">
+        <Save size={15} /> Save
+      </button>
+    </form>
+  );
+}
+
+function TodoEditor({ row }: { row?: Todo }) {
+  return (
+    <form className="editGrid" action={upsertTodo}>
+      <input type="hidden" name="id" value={row?.id || ""} />
+      <Field label="Task">
+        <input name="task" defaultValue={row?.task || ""} required />
+      </Field>
+      <Field label="Due date/time">
+        <input name="due_at" type="datetime-local" defaultValue={row?.due_at?.slice(0, 16) || ""} />
+      </Field>
+      <Field label="Priority">
+        <select name="priority" defaultValue={row?.priority || "Normal"}>
+          {["Low", "Normal", "High", "Urgent"].map((item) => (
+            <option key={item}>{item}</option>
+          ))}
+        </select>
+      </Field>
+      <Field label="Status">
+        <select name="status" defaultValue={row?.status || "Pending"}>
+          {["Pending", "Done", "Snoozed", "Cancelled"].map((item) => (
+            <option key={item}>{item}</option>
+          ))}
+        </select>
+      </Field>
+      <label className="field wide">
+        <span>Notes</span>
+        <textarea name="notes" defaultValue={row?.notes || ""} />
+      </label>
+      <button className="primaryButton" type="submit">
+        <Save size={15} /> Save
+      </button>
+    </form>
+  );
+}
+
+function AIInsightList({ insights }: { insights: AIInsight[] }) {
+  return (
+    <div className="insightList">
+      {insights.map((insight) => (
+        <article className={`insight ${insight.severity.toLowerCase()}`} key={insight.id}>
+          <div>
+            <Badge tone={insight.severity === "Critical" ? "urgent" : insight.severity === "Warning" ? "warning" : insight.severity === "Watch" ? "watch" : "safe"}>
+              {insight.severity}
+            </Badge>
+            <span>{insight.category}</span>
+          </div>
+          <strong>{insight.title}</strong>
+          <p>{insight.message}</p>
+          <small>{insight.agent}</small>
+        </article>
+      ))}
+      {insights.length === 0 ? <p className="empty block">No AI insights yet.</p> : null}
     </div>
   );
 }
@@ -258,12 +536,9 @@ function BudgetTracker({
 export default async function DashboardPage({ searchParams }: DashboardPageProps) {
   const filters = parseDashboardFilters((await searchParams) || {});
   const data = await getDashboardData(filters);
-  const { metrics } = data;
+  const summary = buildDashboardSummary(data);
   const activeParams = filtersToSearchParams(filters).toString();
-  const budgetAtRisk = data.budgetProgress.filter((row) => row.percentUsed >= 80).length;
-  const budgetLimitTotal = data.budgetProgress.reduce((sum, row) => sum + Number(row.limit || 0), 0);
-  const budgetSpentTotal = data.budgetProgress.reduce((sum, row) => sum + Number(row.spent || 0), 0);
-  const latestExpense = data.expenses[0];
+  const activityTypes = [...new Set(data.activities.map((activity) => activity.activity_type))].sort();
 
   return (
     <main className="appShell">
@@ -278,22 +553,21 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           </div>
         </div>
         <nav className="sideNav">
-          <a href="#overview" className="active">
-            <BarChart3 size={17} />
-            Overview
-          </a>
-          <a href="#expenses">
-            <WalletCards size={17} />
-            Expenses
-          </a>
-          <a href="#tasks">
-            <ClipboardList size={17} />
-            Tasks
-          </a>
-          <a href="#activity">
-            <Activity size={17} />
-            Activity
-          </a>
+          {[
+            ["#overview", "Overview", Wallet],
+            ["#expenses", "Expenses", CreditCard],
+            ["#income", "Income", Wallet],
+            ["#cards", "Credit Cards", CreditCard],
+            ["#subscriptions", "Subscriptions", Bell],
+            ["#reminders", "Reminders", CalendarClock],
+            ["#notes", "Notes", FileText],
+            ["#activities", "Activities", Activity],
+          ].map(([href, label, Icon]) => (
+            <a href={href as string} key={href as string}>
+              <Icon size={17} />
+              {label as string}
+            </a>
+          ))}
         </nav>
         <form action={logoutAction}>
           <button className="logoutButton" type="submit">
@@ -306,287 +580,296 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       <section className="dashboardShell">
         <header className="heroBar" id="overview">
           <div>
-            <p className="eyebrow">Expenses & Budget Tracker</p>
-            <h1>Premium finance cockpit for your Telegram assistant</h1>
-            <p className="heroCopy">A live Supabase operating view for spend control, budget pressure, cards, tasks, and assistant activity.</p>
+            <p className="eyebrow">AI finance command center</p>
+            <h1>Money, bills, tasks, and Telegram signals in one operating view</h1>
+            <p className="heroCopy">AI summarizes and warns, but financial data only changes when you manually save a correction.</p>
             <div className="heroStatus">
+              <Badge tone={summary.priorityLevel}>{summary.priorityLevel.toUpperCase()}</Badge>
               <span>
                 <ShieldCheck size={14} />
-                Private dashboard
+                Private server-rendered dashboard
               </span>
-              <span>
-                <Gauge size={14} />
-                {budgetAtRisk ? `${budgetAtRisk} budgets need attention` : "Budgets calm"}
-              </span>
-              <span>{latestExpense ? `Latest: ${latestExpense.merchant || "Unknown"} ${formatMoney(latestExpense.amount, latestExpense.currency)}` : "No expenses yet"}</span>
+              <span>{summary.highPriorityItemCount} high-priority items</span>
             </div>
           </div>
-          <a className="refreshButton" href={activeParams ? `/?${activeParams}` : "/"} title="Refresh dashboard">
-            <RefreshCw size={18} />
-            <span>Refresh</span>
-          </a>
+          <div className="heroActions">
+            <form action={refreshInsights}>
+              <button className="refreshButton" type="submit" title="Regenerate AI insights">
+                <Bot size={18} />
+                <span>Regenerate AI</span>
+              </button>
+            </form>
+            <a className="refreshButton" href={activeParams ? `/?${activeParams}` : "/"} title="Refresh dashboard">
+              <RefreshCw size={18} />
+              <span>Refresh</span>
+            </a>
+          </div>
         </header>
 
-        <section className="metricsGrid" aria-label="Dashboard metrics">
-          <MetricCard
-            label="Filtered spend"
-            value={formatMoney(metrics.filtered_expense_total, "AED")}
-            detail={`${metrics.filtered_expense_count ?? 0} expenses in view`}
-            icon={<CircleDollarSign size={20} />}
-            tone="good"
-          />
-          <MetricCard
-            label="Today spent"
-            value={formatMoney(metrics.today_expense_total, "AED")}
-            detail={`${metrics.today_expense_count ?? 0} entries today`}
-            icon={<WalletCards size={20} />}
-          />
-          <MetricCard
-            label="Average expense"
-            value={formatMoney(metrics.average_expense, "AED")}
-            detail={metrics.top_category ? `Top category: ${metrics.top_category}` : "No category leader"}
-            icon={<ArrowDownRight size={20} />}
-          />
-          <MetricCard
-            label="Budget pressure"
-            value={budgetLimitTotal ? `${Math.round((budgetSpentTotal / budgetLimitTotal) * 100)}%` : "0%"}
-            detail={budgetLimitTotal ? `${formatMoney(budgetSpentTotal, "AED")} of ${formatMoney(budgetLimitTotal, "AED")}` : "No monthly limits yet"}
-            icon={<Timer size={20} />}
-            tone={budgetAtRisk ? "warning" : "neutral"}
-          />
+        <section className="metricsGrid" aria-label="Monthly financial summary">
+          <MetricCard label="Monthly income" value={formatMoney(summary.monthlyIncomeTotal)} detail={`${data.incomeStreams.length} income streams`} icon={<Wallet size={20} />} tone="good" />
+          <MetricCard label="Monthly expenses" value={formatMoney(summary.monthlyExpenseTotal)} detail={`${data.expenses.length} expenses in view`} icon={<CreditCard size={20} />} />
+          <MetricCard label="Card payments due" value={formatMoney(summary.monthlyCreditCardPaymentTotal)} detail={`${summary.upcomingBills.length} due within 7 days`} icon={<AlertTriangle size={20} />} tone={summary.overdueBills.length ? "urgent" : "warning"} />
+          <MetricCard label="Projected remaining" value={formatMoney(summary.projectedRemainingBalance)} detail="Income - expenses - card payments" icon={<Lightbulb size={20} />} tone={summary.projectedRemainingBalance < 0 ? "urgent" : "good"} />
+          <MetricCard label="Subscriptions" value={formatMoney(summary.monthlySubscriptionTotal)} detail={`${summary.upcomingSubscriptions.length} upcoming charges`} icon={<Bell size={20} />} />
+          <MetricCard label="Upcoming reminders" value={data.reminders.filter((item) => item.status === "Pending").length} detail={`${summary.overdueReminders.length} overdue`} icon={<CalendarClock size={20} />} tone={summary.overdueReminders.length ? "urgent" : "neutral"} />
         </section>
 
-        <BudgetAlerts rows={data.budgetProgress} />
+        <section className="aiPanel" aria-label="AI assistant insights">
+          <div className="panelHeader">
+            <div>
+              <span className="sectionTag">AI layer</span>
+              <h2>Action-Focused Guidance</h2>
+              <p>{formatMoney(summary.monthlyIncomeTotal)} - {formatMoney(summary.monthlyExpenseTotal)} - {formatMoney(summary.monthlyCreditCardPaymentTotal)} = {formatMoney(summary.projectedRemainingBalance)}</p>
+            </div>
+            <Bot size={20} />
+          </div>
+          <AIInsightList insights={data.aiInsights} />
+        </section>
 
         <section className="filterPanel" aria-label="Expense filters">
           <div className="filterTitle">
             <Filter size={18} />
             <div>
-              <strong>Control Plane</strong>
-              <span>Filter the ledger without leaving the cockpit.</span>
+              <strong>Ledger Filters</strong>
+              <span>Filter by category, date range, card, and search text.</span>
             </div>
           </div>
           <form className="filterGrid">
-            <label className="filterControl">
-              <span>Period</span>
+            <Field label="Period">
               <select name="period" defaultValue={filters.period}>
                 {Object.entries(periodLabels).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
+                  <option key={value} value={value}>{label}</option>
                 ))}
               </select>
-            </label>
-            <FilterSelect
-              name="category"
-              label="Category"
-              value={filters.category}
-              options={data.filterOptions.categories}
-              allLabel="All categories"
-            />
-            <FilterSelect name="card" label="Card" value={filters.card} options={data.filterOptions.cards} allLabel="All cards" />
-            <label className="filterControl searchControl">
+            </Field>
+            <Field label="From">
+              <input name="from" type="date" defaultValue={filters.from} />
+            </Field>
+            <Field label="To">
+              <input name="to" type="date" defaultValue={filters.to} />
+            </Field>
+            <Field label="Category">
+              <select name="category" defaultValue={filters.category}>
+                <option value="">All categories</option>
+                {data.filterOptions.categories.map((category) => <option key={category}>{category}</option>)}
+              </select>
+            </Field>
+            <label className="field searchField">
               <span>Search</span>
               <div>
                 <Search size={16} />
                 <input name="q" defaultValue={filters.q} placeholder="Merchant, note, category" />
               </div>
             </label>
-            <button className="primaryButton" type="submit">
-              Apply
-            </button>
-            <a className="ghostButton" href="/">
-              Reset
-            </a>
+            <button className="primaryButton" type="submit">Apply</button>
+            <a className="ghostButton" href="/">Reset</a>
           </form>
         </section>
 
-        <div className="dashboardGrid">
-          <section className="panel chartPanel">
-            <div className="panelHeader">
-              <div>
-                <span className="sectionTag">Trend</span>
-                <h2>Monthly Spend</h2>
-                <p>Last six months from all tracked expenses</p>
-              </div>
+        <section className="panel" id="expenses">
+          <div className="panelHeader">
+            <div>
+              <span className="sectionTag">Expenses</span>
+              <h2>Editable Expense Ledger</h2>
+              <p>Manual corrections are tracked and bad AI/import guesses stay reversible.</p>
             </div>
-            <MonthlyChart rows={data.monthlySpend} />
-          </section>
-
-          <section className="panel">
-            <div className="panelHeader">
-              <div>
-                <span className="sectionTag">Mix</span>
-                <h2>Category Mix</h2>
-                <p>Filtered expense distribution</p>
-              </div>
-            </div>
-            <div className="bars">
-              {data.categoryBreakdown.map((row) => (
-                <div className="barRow" key={row.category}>
-                  <div>
-                    <strong>{row.category || "Other"}</strong>
-                    <span>{row.expense_count} entries</span>
-                  </div>
-                  <b>{formatMoney(row.total_amount, row.currency)}</b>
-                </div>
-              ))}
-              {data.categoryBreakdown.length === 0 ? <p className="empty block">No category data.</p> : null}
-            </div>
-          </section>
-
-          <section className="panel span2" id="expenses">
-            <div className="panelHeader">
-              <div>
-                <span className="sectionTag">Ledger</span>
-                <h2>Expense Tracker</h2>
-                <p>Filtered transaction ledger with quick cleanup controls</p>
-              </div>
-              <span>{data.expenses.length}</span>
-            </div>
-            <div className="tableWrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Date</th>
-                    <th>Merchant</th>
-                    <th>Category</th>
-                    <th>Card</th>
-                    <th className="right">Amount</th>
-                    <th className="right">Action</th>
+            <Badge>{data.expenses.length} rows</Badge>
+          </div>
+          <details className="addBlock">
+            <summary><Plus size={16} /> Add expense</summary>
+            <ExpenseEditor />
+          </details>
+          <div className="tableWrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Merchant</th>
+                  <th>Category</th>
+                  <th>Method</th>
+                  <th>Status</th>
+                  <th className="right">Amount</th>
+                  <th>Notes</th>
+                  <th>Controls</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.expenses.map((expense) => (
+                  <tr key={expense.id}>
+                    <td>{formatDate(expense.expense_date)}</td>
+                    <td><strong>{expense.merchant || "Unknown"}</strong>{expense.is_manually_corrected ? <Badge tone="watch">Manual correction</Badge> : null}</td>
+                    <td>{expense.category || "Other"}</td>
+                    <td>{expense.card || expense.payment_method || "-"}</td>
+                    <td>{statusLabel(expense.status || "posted")}</td>
+                    <td className="right">{formatMoney(expense.amount, expense.currency)}</td>
+                    <td><small>{expense.notes || "-"}</small></td>
+                    <td>
+                      <details className="rowEditor">
+                        <summary><Pencil size={15} /> Edit</summary>
+                        <ExpenseEditor expense={expense} />
+                      </details>
+                      <DeleteConfirm id={expense.id} action={removeExpense} />
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {data.expenses.map((expense) => (
-                    <tr key={expense.id}>
-                      <td>{formatDate(expense.expense_date)}</td>
-                      <td>
-                        <strong>{expense.merchant || "Unknown"}</strong>
-                        <small>{expense.notes || expense.source}</small>
-                      </td>
-                      <td>{expense.category}</td>
-                      <td>{expense.card || expense.payment_method || "-"}</td>
-                      <td className="right">{formatMoney(expense.amount, expense.currency)}</td>
-                      <td className="right">
-                        <form action={removeExpense}>
-                          <input type="hidden" name="id" value={expense.id} />
-                          <button className="iconButton danger" type="submit" title="Delete expense">
-                            <Trash2 size={15} />
-                          </button>
-                        </form>
-                      </td>
-                    </tr>
-                  ))}
-                  {data.expenses.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="empty">
-                        No expenses match these filters.
-                      </td>
-                    </tr>
-                  ) : null}
-                </tbody>
-              </table>
-            </div>
-          </section>
+                ))}
+                {data.expenses.length === 0 ? <tr><td colSpan={8} className="empty">No expenses match these filters.</td></tr> : null}
+              </tbody>
+            </table>
+          </div>
+        </section>
 
-          <section className="panel" id="tasks">
+        <div className="dashboardGrid">
+          <section className="panel" id="income">
             <div className="panelHeader">
-              <div>
-                <span className="sectionTag">Tasks</span>
-                <h2>Open Tasks</h2>
-                <p>Todos and reminders waiting on you</p>
-              </div>
-              <span>{data.tasks.length}</span>
+              <div><span className="sectionTag">Income</span><h2>Income Streams</h2><p>Total selected month: {formatMoney(summary.monthlyIncomeTotal)}</p></div>
             </div>
-            <div className="taskList">
-              {data.tasks.map((task) => (
-                <article className="taskItem" key={task.id}>
-                  <div>
-                    <strong>{task.task}</strong>
-                    <p>
-                      {statusLabel(task.status)} - {priorityLabel(task.priority)}
-                      {task.due_at ? ` - ${formatDateTime(task.due_at)}` : ""}
-                    </p>
-                  </div>
-                  <form action={completeTask}>
-                    <input type="hidden" name="id" value={task.id} />
-                    <button className="iconButton" type="submit" title="Mark done">
-                      <Check size={16} />
-                    </button>
-                  </form>
+            <details className="addBlock"><summary><Plus size={16} /> Add income</summary><IncomeEditor /></details>
+            <div className="compactList">
+              {data.incomeStreams.map((row) => (
+                <article className="listItem" key={row.id}>
+                  <div><strong>{row.source_name}</strong><p>{row.type} - {row.frequency} - {formatDate(row.expected_date)}</p></div>
+                  <div className="itemActions"><Badge tone={row.status === "Late" ? "warning" : "safe"}>{row.status}</Badge><b>{formatMoney(row.amount, row.currency)}</b></div>
+                  <details className="rowEditor"><summary><Pencil size={15} /> Edit</summary><IncomeEditor row={row} /></details>
+                  <DeleteConfirm id={row.id} action={removeIncome} />
                 </article>
               ))}
-              {data.tasks.length === 0 ? <p className="empty block">No open tasks.</p> : null}
+              {data.incomeStreams.length === 0 ? <p className="empty block">No income streams yet.</p> : null}
             </div>
           </section>
 
-          <section className="panel">
+          <section className="panel" id="cards">
             <div className="panelHeader">
-              <div>
-                <span className="sectionTag">Cards</span>
-                <h2>Card Spend</h2>
-                <p>Payment method concentration</p>
-              </div>
+              <div><span className="sectionTag">Credit cards</span><h2>Bill Due Table</h2><p>Total due this month: {formatMoney(summary.monthlyCreditCardPaymentTotal)}</p></div>
             </div>
-            <div className="bars">
-              {data.cardBreakdown.map((row) => (
-                <div className="barRow" key={row.card}>
-                  <div>
-                    <strong>{row.card || "Unknown"}</strong>
-                    <span>{row.expense_count} entries</span>
-                  </div>
-                  <b>{formatMoney(row.total_amount, row.currency)}</b>
-                </div>
+            <details className="addBlock"><summary><Plus size={16} /> Add bill</summary><BillEditor /></details>
+            <div className="compactList">
+              {data.creditCardBills.map((row) => (
+                <article className="listItem" key={row.id}>
+                  <div><strong>{row.card_name}</strong><p>Due {formatDate(row.due_date)} - min {formatMoney(row.minimum_payment, row.currency)}{row.autopay_enabled ? " - autopay" : ""}</p></div>
+                  <div className="itemActions"><Badge tone={row.payment_status === "Overdue" ? "urgent" : row.priority === "High" || row.priority === "Urgent" ? "warning" : "watch"}>{row.payment_status}</Badge><b>{formatMoney(row.statement_balance, row.currency)}</b></div>
+                  <details className="rowEditor"><summary><Pencil size={15} /> Edit</summary><BillEditor row={row} /></details>
+                  <DeleteConfirm id={row.id} action={removeCreditCardBill} />
+                </article>
               ))}
-              {data.cardBreakdown.length === 0 ? <p className="empty block">No card data.</p> : null}
+              {data.creditCardBills.length === 0 ? <p className="empty block">No credit card bills yet.</p> : null}
             </div>
           </section>
 
-          <section className="panel">
+          <section className="panel" id="subscriptions">
             <div className="panelHeader">
-              <div>
-                <span className="sectionTag">Directory</span>
-                <h2>Card Directory</h2>
-                <p>Saved card names used by Telegram and filters</p>
-              </div>
-              <span>{data.cards.length}</span>
+              <div><span className="sectionTag">Subscriptions</span><h2>Subscription Watch</h2><p>Monthly total: {formatMoney(summary.monthlySubscriptionTotal)}</p></div>
             </div>
-            <CardDirectory cards={data.cards} />
+            <details className="addBlock"><summary><Plus size={16} /> Add subscription</summary><SubscriptionEditor /></details>
+            <div className="compactList">
+              {data.subscriptions.map((row) => (
+                <article className="listItem" key={row.id}>
+                  <div><strong>{row.subscription_name}</strong><p>{row.category} - {row.billing_cycle} - next {formatDate(row.next_billing_date)}</p></div>
+                  <div className="itemActions"><Badge tone={row.cancel_review_flag ? "warning" : "safe"}>{row.cancel_review_flag ? "Review" : row.status}</Badge><b>{formatMoney(row.amount, row.currency)}</b></div>
+                  <details className="rowEditor"><summary><Pencil size={15} /> Edit</summary><SubscriptionEditor row={row} /></details>
+                  <DeleteConfirm id={row.id} action={removeSubscription} />
+                </article>
+              ))}
+              {data.subscriptions.length === 0 ? <p className="empty block">No subscriptions yet.</p> : null}
+            </div>
+          </section>
+
+          <section className="panel" id="reminders">
+            <div className="panelHeader">
+              <div><span className="sectionTag">Productivity</span><h2>Reminders & Todos</h2><p>{summary.overdueReminders.length} overdue reminders</p></div>
+            </div>
+            <details className="addBlock"><summary><Plus size={16} /> Add reminder</summary><ReminderEditor /></details>
+            <details className="addBlock"><summary><Plus size={16} /> Add todo</summary><TodoEditor /></details>
+            <div className="compactList">
+              {[...data.reminders].slice(0, 8).map((row) => (
+                <article className="listItem" key={row.id}>
+                  <div><strong>{row.title}</strong><p>{formatDateTime(row.due_at)} - {row.source}</p></div>
+                  <div className="itemActions"><Badge tone={row.priority === "Urgent" ? "urgent" : row.priority === "High" ? "warning" : "watch"}>{row.status}</Badge></div>
+                  <form action={snoozeReminderAction}><input type="hidden" name="id" value={row.id} /><button className="iconButton" type="submit" title="Snooze"><Bell size={15} /></button></form>
+                  <details className="rowEditor"><summary><Pencil size={15} /> Edit</summary><ReminderEditor row={row} /></details>
+                  <DeleteConfirm id={row.id} action={removeReminder} />
+                </article>
+              ))}
+              {data.todos.slice(0, 8).map((row) => (
+                <article className="listItem" key={row.id}>
+                  <div><strong>{row.task}</strong><p>{row.due_at ? formatDateTime(row.due_at) : "No due date"} - {row.source}</p></div>
+                  <div className="itemActions"><Badge>{row.status}</Badge></div>
+                  <details className="rowEditor"><summary><Pencil size={15} /> Edit</summary><TodoEditor row={row} /></details>
+                  <DeleteConfirm id={row.id} action={removeTodo} />
+                </article>
+              ))}
+              {!data.reminders.length && !data.todos.length ? <p className="empty block">No reminders or todos yet.</p> : null}
+            </div>
+          </section>
+
+          <section className="panel" id="notes">
+            <div className="panelHeader">
+              <div><span className="sectionTag">Notes</span><h2>Notes & Linked Context</h2><p>Prepared for dashboard and Telegram-created notes.</p></div>
+            </div>
+            <details className="addBlock"><summary><Plus size={16} /> Add note</summary><NoteEditor /></details>
+            <div className="compactList">
+              {data.notes.map((row) => (
+                <article className="listItem" key={row.id}>
+                  <div><strong>{row.title}</strong><p>{row.body}</p><small>{(row.tags || []).join(", ") || "No tags"} - {row.linked_item_type}</small></div>
+                  <Badge tone={row.priority === "Urgent" ? "urgent" : row.priority === "High" ? "warning" : "neutral"}>{row.priority}</Badge>
+                  <details className="rowEditor"><summary><Pencil size={15} /> Edit</summary><NoteEditor row={row} /></details>
+                  <DeleteConfirm id={row.id} action={removeNote} />
+                </article>
+              ))}
+              {data.notes.length === 0 ? <p className="empty block">No notes yet.</p> : null}
+            </div>
+          </section>
+
+          <section className="panel span2" id="activities">
+            <div className="panelHeader">
+              <div><span className="sectionTag">Activity</span><h2>Activity Feed</h2><p>Clean audit trail for edits, reminders, AI warnings, and Telegram actions.</p></div>
+              <details className="activityToggle" open><summary>Show / hide</summary></details>
+            </div>
+            <form className="activityFilters">
+              <input type="hidden" name="period" value={filters.period} />
+              <Field label="Activity type">
+                <select name="activityType" defaultValue={filters.activityType}>
+                  <option value="">All activity</option>
+                  {activityTypes.map((type) => <option key={type}>{type}</option>)}
+                </select>
+              </Field>
+              <button className="ghostButton" type="submit">Filter</button>
+            </form>
+            <details className="activityBody" open>
+              <summary><Activity size={16} /> Activity log</summary>
+              <div className="logList">
+                {data.activities.map((activity) => (
+                  <article className="logItem" key={activity.id}>
+                    <div><strong>{activity.title}</strong><Badge>{activity.activity_type}</Badge></div>
+                    <p>{activity.description || activity.source}</p>
+                    <time>{formatDateTime(activity.created_at)}</time>
+                  </article>
+                ))}
+                {data.activities.length === 0 ? <p className="empty block">No activity yet.</p> : null}
+              </div>
+            </details>
           </section>
 
           <section className="panel span2">
             <div className="panelHeader">
-              <div>
-                <span className="sectionTag">Budgets</span>
-                <h2>Budget Tracker</h2>
-                <p>Monthly category limits against Telegram expenses</p>
-              </div>
-              <TrendingUp size={18} />
+              <div><span className="sectionTag">Existing tools</span><h2>Budget Limits & Open Tasks</h2><p>Preserved from the previous dashboard.</p></div>
+              <ListChecks size={18} />
             </div>
-            <BudgetTracker rows={data.budgetProgress} categories={data.filterOptions.categories} />
-          </section>
-
-          <section className="panel span2" id="activity">
-            <div className="panelHeader">
-              <div>
-                <span className="sectionTag">Activity</span>
-                <h2>Assistant Activity</h2>
-                <p>Recent parser decisions and automation outcomes</p>
+            <div className="utilityGrid">
+              <form className="budgetForm" action={upsertBudget}>
+                <Field label="Category"><select name="category" required><option value="">Choose category</option>{data.filterOptions.categories.map((category) => <option key={category}>{category}</option>)}</select></Field>
+                <Field label="Monthly limit"><input name="amount" type="number" min="1" step="1" placeholder="AED" required /></Field>
+                <button className="primaryButton" type="submit">Save budget</button>
+              </form>
+              <div className="compactList">
+                {data.tasks.map((task) => (
+                  <article className="listItem" key={task.id}>
+                    <div><strong>{task.task}</strong><p>{statusLabel(task.status)} - {priorityLabel(task.priority)}{task.due_at ? ` - ${formatDateTime(task.due_at)}` : ""}</p></div>
+                    <form action={completeTask}><input type="hidden" name="id" value={task.id} /><button className="iconButton" type="submit" title="Mark done"><Check size={16} /></button></form>
+                  </article>
+                ))}
+                {data.tasks.length === 0 ? <p className="empty block">No open legacy tasks.</p> : null}
               </div>
-              <span>{data.logs.length}</span>
-            </div>
-            <div className="logList">
-              {data.logs.map((log) => (
-                <article key={log.id} className="logItem">
-                  <div>
-                    <strong>{log.intent || "unknown"}</strong>
-                    <span>{log.status}</span>
-                  </div>
-                  <p>{log.raw_input || log.message || "No message"}</p>
-                  <time>{formatDateTime(log.created_at)}</time>
-                </article>
-              ))}
-              {data.logs.length === 0 ? <p className="empty block">No logs yet.</p> : null}
             </div>
           </section>
         </div>
