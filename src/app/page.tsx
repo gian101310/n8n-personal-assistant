@@ -12,6 +12,7 @@ import {
   Lightbulb,
   ListChecks,
   LogOut,
+  MoreHorizontal,
   Pencil,
   Plus,
   RefreshCw,
@@ -200,11 +201,11 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-function DeleteConfirm({ id, action, label = "Delete" }: { id: string; action: (formData: FormData) => Promise<void>; label?: string }) {
+function DeleteConfirm({ id, action, label = "Delete permanently" }: { id: string; action: (formData: FormData) => Promise<void>; label?: string }) {
   return (
     <details className="confirmDelete">
       <summary>
-        <Trash2 size={15} />
+        <Trash2 size={15} /> Danger
       </summary>
       <form action={action}>
         <input type="hidden" name="id" value={id} />
@@ -213,6 +214,130 @@ function DeleteConfirm({ id, action, label = "Delete" }: { id: string; action: (
         </button>
       </form>
     </details>
+  );
+}
+
+function EditFooter() {
+  return (
+    <div className="editFooter">
+      <button className="ghostButton" type="reset">
+        Cancel edits
+      </button>
+      <button className="primaryButton" type="submit">
+        <Save size={15} /> Save changes
+      </button>
+    </div>
+  );
+}
+
+function RowActions({
+  id,
+  deleteAction,
+  children,
+}: {
+  id: string;
+  deleteAction: (formData: FormData) => Promise<void>;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="rowActions">
+      <details className="rowEditor">
+        <summary>
+          <Pencil size={15} /> Edit
+        </summary>
+        {children}
+      </details>
+      <details className="moreActions">
+        <summary>
+          <MoreHorizontal size={16} /> More
+        </summary>
+        <DeleteConfirm id={id} action={deleteAction} />
+      </details>
+    </div>
+  );
+}
+
+function CashflowVisual({
+  income,
+  expenses,
+  cardPayments,
+  subscriptions,
+  remaining,
+  topCategories,
+}: {
+  income: number;
+  expenses: number;
+  cardPayments: number;
+  subscriptions: number;
+  remaining: number;
+  topCategories: { category?: string; total_amount: string | number; currency: string }[];
+}) {
+  const outflow = expenses + cardPayments + subscriptions;
+  const basis = Math.max(income, outflow, Math.abs(remaining), 1);
+  const expensePercent = Math.min(100, Math.round((expenses / basis) * 100));
+  const cardPercent = Math.min(100, Math.round((cardPayments / basis) * 100));
+  const subscriptionPercent = Math.min(100, Math.round((subscriptions / basis) * 100));
+  const remainingPercent = Math.min(100, Math.round((Math.max(remaining, 0) / basis) * 100));
+  const totalCategory = Math.max(topCategories.reduce((sum, row) => sum + Number(row.total_amount || 0), 0), 1);
+  let cursor = 0;
+  const categoryStops = topCategories.slice(0, 5).map((row, index) => {
+    const start = cursor;
+    const width = (Number(row.total_amount || 0) / totalCategory) * 100;
+    cursor += width;
+    const colors = ["#087f68", "#245c9c", "#a86608", "#7c5b12", "#b42318"];
+    return `${colors[index]} ${start}% ${cursor}%`;
+  });
+  const donut = topCategories.length ? `conic-gradient(${categoryStops.join(", ")})` : "conic-gradient(#d9d1c4 0 100%)";
+
+  return (
+    <section className="visualPanel" aria-label="Finance visualization">
+      <div className="visualHeader">
+        <div>
+          <span className="sectionTag">KPI view</span>
+          <h2>Cashflow & Spend Mix</h2>
+          <p>Income, spending pressure, card payments, subscriptions, and top categories.</p>
+        </div>
+        <Badge tone={remaining < 0 ? "urgent" : remaining < income * 0.1 ? "warning" : "safe"}>{remaining < 0 ? "Shortfall" : "Funded"}</Badge>
+      </div>
+      <div className="visualGrid">
+        <div className="kpiBars">
+          {[
+            ["Income", income, 100, "income"],
+            ["Expenses", expenses, expensePercent, "expense"],
+            ["Card payments", cardPayments, cardPercent, "cards"],
+            ["Subscriptions", subscriptions, subscriptionPercent, "subs"],
+            ["Remaining", remaining, remainingPercent, "remaining"],
+          ].map(([label, value, percent, tone]) => (
+            <div className="kpiBar" key={label as string}>
+              <div>
+                <strong>{label as string}</strong>
+                <span>{formatMoney(value as number)}</span>
+              </div>
+              <div className="kpiTrack">
+                <span className={tone as string} style={{ width: `${Math.max(remaining < 0 && label === "Remaining" ? 100 : 4, percent as number)}%` }} />
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="donutWrap">
+          <div className="donutChart" style={{ background: donut }}>
+            <div>
+              <strong>{formatMoney(expenses)}</strong>
+              <span>Expenses</span>
+            </div>
+          </div>
+          <div className="legendList">
+            {topCategories.slice(0, 5).map((row, index) => (
+              <span key={row.category || index}>
+                <i className={`legendDot dot${index + 1}`} />
+                {row.category || "Other"} {formatMoney(row.total_amount, row.currency)}
+              </span>
+            ))}
+            {topCategories.length === 0 ? <span>No category data yet</span> : null}
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -252,9 +377,7 @@ function ExpenseEditor({ expense }: { expense?: Expense }) {
         <span>Notes</span>
         <textarea name="notes" defaultValue={expense?.notes || ""} />
       </label>
-      <button className="primaryButton" type="submit">
-        <Save size={15} /> Save
-      </button>
+      <EditFooter />
     </form>
   );
 }
@@ -297,9 +420,7 @@ function IncomeEditor({ row }: { row?: IncomeStream }) {
         <span>Notes</span>
         <textarea name="notes" defaultValue={row?.notes || ""} />
       </label>
-      <button className="primaryButton" type="submit">
-        <Save size={15} /> Save
-      </button>
+      <EditFooter />
     </form>
   );
 }
@@ -342,9 +463,7 @@ function BillEditor({ row }: { row?: CreditCardBill }) {
         <span>Notes</span>
         <textarea name="notes" defaultValue={row?.notes || ""} />
       </label>
-      <button className="primaryButton" type="submit">
-        <Save size={15} /> Save
-      </button>
+      <EditFooter />
     </form>
   );
 }
@@ -390,9 +509,7 @@ function SubscriptionEditor({ row }: { row?: Subscription }) {
         <span>Notes</span>
         <textarea name="notes" defaultValue={row?.notes || ""} />
       </label>
-      <button className="primaryButton" type="submit">
-        <Save size={15} /> Save
-      </button>
+      <EditFooter />
     </form>
   );
 }
@@ -428,9 +545,7 @@ function NoteEditor({ row }: { row?: Note }) {
         <span>Body</span>
         <textarea name="body" defaultValue={row?.body || ""} required />
       </label>
-      <button className="primaryButton" type="submit">
-        <Save size={15} /> Save
-      </button>
+      <EditFooter />
     </form>
   );
 }
@@ -470,9 +585,7 @@ function ReminderEditor({ row }: { row?: Reminder }) {
         <span>Description</span>
         <textarea name="description" defaultValue={row?.description || ""} />
       </label>
-      <button className="primaryButton" type="submit">
-        <Save size={15} /> Save
-      </button>
+      <EditFooter />
     </form>
   );
 }
@@ -505,9 +618,7 @@ function TodoEditor({ row }: { row?: Todo }) {
         <span>Notes</span>
         <textarea name="notes" defaultValue={row?.notes || ""} />
       </label>
-      <button className="primaryButton" type="submit">
-        <Save size={15} /> Save
-      </button>
+      <EditFooter />
     </form>
   );
 }
@@ -615,6 +726,15 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           <MetricCard label="Upcoming reminders" value={data.reminders.filter((item) => item.status === "Pending").length} detail={`${summary.overdueReminders.length} overdue`} icon={<CalendarClock size={20} />} tone={summary.overdueReminders.length ? "urgent" : "neutral"} />
         </section>
 
+        <CashflowVisual
+          income={summary.monthlyIncomeTotal}
+          expenses={summary.monthlyExpenseTotal}
+          cardPayments={summary.monthlyCreditCardPaymentTotal}
+          subscriptions={summary.monthlySubscriptionTotal}
+          remaining={summary.projectedRemainingBalance}
+          topCategories={data.categoryBreakdown}
+        />
+
         <section className="aiPanel" aria-label="AI assistant insights">
           <div className="panelHeader">
             <div>
@@ -705,11 +825,9 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                     <td className="right">{formatMoney(expense.amount, expense.currency)}</td>
                     <td><small>{expense.notes || "-"}</small></td>
                     <td>
-                      <details className="rowEditor">
-                        <summary><Pencil size={15} /> Edit</summary>
+                      <RowActions id={expense.id} deleteAction={removeExpense}>
                         <ExpenseEditor expense={expense} />
-                      </details>
-                      <DeleteConfirm id={expense.id} action={removeExpense} />
+                      </RowActions>
                     </td>
                   </tr>
                 ))}
@@ -730,8 +848,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                 <article className="listItem" key={row.id}>
                   <div><strong>{row.source_name}</strong><p>{row.type} - {row.frequency} - {formatDate(row.expected_date)}</p></div>
                   <div className="itemActions"><Badge tone={row.status === "Late" ? "warning" : "safe"}>{row.status}</Badge><b>{formatMoney(row.amount, row.currency)}</b></div>
-                  <details className="rowEditor"><summary><Pencil size={15} /> Edit</summary><IncomeEditor row={row} /></details>
-                  <DeleteConfirm id={row.id} action={removeIncome} />
+                  <RowActions id={row.id} deleteAction={removeIncome}><IncomeEditor row={row} /></RowActions>
                 </article>
               ))}
               {data.incomeStreams.length === 0 ? <p className="empty block">No income streams yet.</p> : null}
@@ -748,8 +865,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                 <article className="listItem" key={row.id}>
                   <div><strong>{row.card_name}</strong><p>Due {formatDate(row.due_date)} - min {formatMoney(row.minimum_payment, row.currency)}{row.autopay_enabled ? " - autopay" : ""}</p></div>
                   <div className="itemActions"><Badge tone={row.payment_status === "Overdue" ? "urgent" : row.priority === "High" || row.priority === "Urgent" ? "warning" : "watch"}>{row.payment_status}</Badge><b>{formatMoney(row.statement_balance, row.currency)}</b></div>
-                  <details className="rowEditor"><summary><Pencil size={15} /> Edit</summary><BillEditor row={row} /></details>
-                  <DeleteConfirm id={row.id} action={removeCreditCardBill} />
+                  <RowActions id={row.id} deleteAction={removeCreditCardBill}><BillEditor row={row} /></RowActions>
                 </article>
               ))}
               {data.creditCardBills.length === 0 ? <p className="empty block">No credit card bills yet.</p> : null}
@@ -766,8 +882,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                 <article className="listItem" key={row.id}>
                   <div><strong>{row.subscription_name}</strong><p>{row.category} - {row.billing_cycle} - next {formatDate(row.next_billing_date)}</p></div>
                   <div className="itemActions"><Badge tone={row.cancel_review_flag ? "warning" : "safe"}>{row.cancel_review_flag ? "Review" : row.status}</Badge><b>{formatMoney(row.amount, row.currency)}</b></div>
-                  <details className="rowEditor"><summary><Pencil size={15} /> Edit</summary><SubscriptionEditor row={row} /></details>
-                  <DeleteConfirm id={row.id} action={removeSubscription} />
+                  <RowActions id={row.id} deleteAction={removeSubscription}><SubscriptionEditor row={row} /></RowActions>
                 </article>
               ))}
               {data.subscriptions.length === 0 ? <p className="empty block">No subscriptions yet.</p> : null}
@@ -786,16 +901,14 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                   <div><strong>{row.title}</strong><p>{formatDateTime(row.due_at)} - {row.source}</p></div>
                   <div className="itemActions"><Badge tone={row.priority === "Urgent" ? "urgent" : row.priority === "High" ? "warning" : "watch"}>{row.status}</Badge></div>
                   <form action={snoozeReminderAction}><input type="hidden" name="id" value={row.id} /><button className="iconButton" type="submit" title="Snooze"><Bell size={15} /></button></form>
-                  <details className="rowEditor"><summary><Pencil size={15} /> Edit</summary><ReminderEditor row={row} /></details>
-                  <DeleteConfirm id={row.id} action={removeReminder} />
+                  <RowActions id={row.id} deleteAction={removeReminder}><ReminderEditor row={row} /></RowActions>
                 </article>
               ))}
               {data.todos.slice(0, 8).map((row) => (
                 <article className="listItem" key={row.id}>
                   <div><strong>{row.task}</strong><p>{row.due_at ? formatDateTime(row.due_at) : "No due date"} - {row.source}</p></div>
                   <div className="itemActions"><Badge>{row.status}</Badge></div>
-                  <details className="rowEditor"><summary><Pencil size={15} /> Edit</summary><TodoEditor row={row} /></details>
-                  <DeleteConfirm id={row.id} action={removeTodo} />
+                  <RowActions id={row.id} deleteAction={removeTodo}><TodoEditor row={row} /></RowActions>
                 </article>
               ))}
               {!data.reminders.length && !data.todos.length ? <p className="empty block">No reminders or todos yet.</p> : null}
@@ -812,8 +925,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                 <article className="listItem" key={row.id}>
                   <div><strong>{row.title}</strong><p>{row.body}</p><small>{(row.tags || []).join(", ") || "No tags"} - {row.linked_item_type}</small></div>
                   <Badge tone={row.priority === "Urgent" ? "urgent" : row.priority === "High" ? "warning" : "neutral"}>{row.priority}</Badge>
-                  <details className="rowEditor"><summary><Pencil size={15} /> Edit</summary><NoteEditor row={row} /></details>
-                  <DeleteConfirm id={row.id} action={removeNote} />
+                  <RowActions id={row.id} deleteAction={removeNote}><NoteEditor row={row} /></RowActions>
                 </article>
               ))}
               {data.notes.length === 0 ? <p className="empty block">No notes yet.</p> : null}

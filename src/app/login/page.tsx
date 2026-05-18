@@ -1,4 +1,5 @@
-import { LockKeyhole, ShieldCheck } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
+import { PasswordField } from "./password-field";
 import { loginAction } from "./actions";
 
 type LoginPageProps = {
@@ -10,6 +11,7 @@ type LoginPageProps = {
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   const params = (await searchParams) || {};
+  const passwordHint = process.env.DASHBOARD_PASSWORD_HINT || "Hint keyword: Tropang";
   const message =
     params.error === "invalid"
       ? "Password did not match."
@@ -29,10 +31,8 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
         <form className="loginForm" action={loginAction}>
           <input type="hidden" name="next" value={params.next || "/"} />
           <label htmlFor="password">Password</label>
-          <div className="passwordField">
-            <LockKeyhole size={18} />
-            <input id="password" name="password" type="password" autoComplete="current-password" required />
-          </div>
+          <PasswordField />
+          <p className="passwordHint">{passwordHint}</p>
           {message ? <p className="formError">{message}</p> : null}
           <button className="primaryButton" type="submit">
             Sign in
