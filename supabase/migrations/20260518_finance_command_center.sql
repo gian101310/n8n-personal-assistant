@@ -286,3 +286,4 @@ grant select, insert, update, delete on public.assistant_notes to service_role;
 grant select, insert, update, delete on public.assistant_todos to service_role;
 grant select, insert, update, delete on public.assistant_activity_logs to service_role;
 grant select, insert, update, delete on public.assistant_ai_insights to service_role;
+grant usage, select on all sequences in schema assistant to service_role;

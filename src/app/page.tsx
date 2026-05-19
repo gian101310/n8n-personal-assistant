@@ -54,6 +54,27 @@ type DashboardPageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
 
+type DashboardTab = "overview" | "expenses" | "tasks" | "income" | "cards" | "reminders" | "notes" | "activities";
+
+const dashboardTabs: Array<[DashboardTab, string, typeof Wallet]> = [
+  ["overview", "Overview", Wallet],
+  ["expenses", "Expenses", CreditCard],
+  ["tasks", "Tasks", ListChecks],
+  ["income", "Income", Wallet],
+  ["cards", "Credit Cards", CreditCard],
+  ["reminders", "Reminders", CalendarClock],
+  ["notes", "Notes", FileText],
+  ["activities", "Activities", Activity],
+];
+
+function singleParam(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function isDashboardTab(value: string | undefined): value is DashboardTab {
+  return Boolean(value && dashboardTabs.some(([tab]) => tab === value));
+}
+
 async function completeTask(formData: FormData) {
   "use server";
   const id = String(formData.get("id") || "");
@@ -645,11 +666,21 @@ function AIInsightList({ insights }: { insights: AIInsight[] }) {
 }
 
 export default async function DashboardPage({ searchParams }: DashboardPageProps) {
-  const filters = parseDashboardFilters((await searchParams) || {});
+  const rawParams = (await searchParams) || {};
+  const filters = parseDashboardFilters(rawParams);
   const data = await getDashboardData(filters);
   const summary = buildDashboardSummary(data);
   const activeParams = filtersToSearchParams(filters).toString();
   const activityTypes = [...new Set(data.activities.map((activity) => activity.activity_type))].sort();
+  const requestedTab = singleParam(rawParams.tab);
+  const activeTab: DashboardTab = isDashboardTab(requestedTab) ? requestedTab : "overview";
+  const tabHref = (tab: DashboardTab) => {
+    const params = new URLSearchParams(activeParams);
+    if (tab !== "overview") params.set("tab", tab);
+    else params.delete("tab");
+    const query = params.toString();
+    return query ? `/?${query}` : "/";
+  };
 
   return (
     <main className="appShell">
@@ -664,19 +695,10 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           </div>
         </div>
         <nav className="sideNav">
-          {[
-            ["#overview", "Overview", Wallet],
-            ["#expenses", "Expenses", CreditCard],
-            ["#income", "Income", Wallet],
-            ["#cards", "Credit Cards", CreditCard],
-            ["#subscriptions", "Subscriptions", Bell],
-            ["#reminders", "Reminders", CalendarClock],
-            ["#notes", "Notes", FileText],
-            ["#activities", "Activities", Activity],
-          ].map(([href, label, Icon]) => (
-            <a href={href as string} key={href as string}>
+          {dashboardTabs.map(([tab, label, Icon]) => (
+            <a href={tabHref(tab)} className={activeTab === tab ? "active" : ""} key={tab} aria-current={activeTab === tab ? "page" : undefined}>
               <Icon size={17} />
-              {label as string}
+              {label}
             </a>
           ))}
         </nav>
@@ -717,6 +739,15 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           </div>
         </header>
 
+        <nav className="tabRail" aria-label="Dashboard sections">
+          {dashboardTabs.map(([tab, label, Icon]) => (
+            <a href={tabHref(tab)} className={activeTab === tab ? "active" : ""} key={tab} aria-current={activeTab === tab ? "page" : undefined}>
+              <Icon size={16} />
+              <span>{label}</span>
+            </a>
+          ))}
+        </nav>
+
         <section className="metricsGrid" aria-label="Monthly financial summary">
           <MetricCard label="Monthly income" value={formatMoney(summary.monthlyIncomeTotal)} detail={`${data.incomeStreams.length} income streams`} icon={<Wallet size={20} />} tone="good" />
           <MetricCard label="Monthly expenses" value={formatMoney(summary.monthlyExpenseTotal)} detail={`${data.expenses.length} expenses in view`} icon={<CreditCard size={20} />} />
@@ -726,27 +757,33 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           <MetricCard label="Upcoming reminders" value={data.reminders.filter((item) => item.status === "Pending").length} detail={`${summary.overdueReminders.length} overdue`} icon={<CalendarClock size={20} />} tone={summary.overdueReminders.length ? "urgent" : "neutral"} />
         </section>
 
-        <CashflowVisual
-          income={summary.monthlyIncomeTotal}
-          expenses={summary.monthlyExpenseTotal}
-          cardPayments={summary.monthlyCreditCardPaymentTotal}
-          subscriptions={summary.monthlySubscriptionTotal}
-          remaining={summary.projectedRemainingBalance}
-          topCategories={data.categoryBreakdown}
-        />
+        {activeTab === "overview" ? (
+          <>
+            <CashflowVisual
+              income={summary.monthlyIncomeTotal}
+              expenses={summary.monthlyExpenseTotal}
+              cardPayments={summary.monthlyCreditCardPaymentTotal}
+              subscriptions={summary.monthlySubscriptionTotal}
+              remaining={summary.projectedRemainingBalance}
+              topCategories={data.categoryBreakdown}
+            />
 
-        <section className="aiPanel" aria-label="AI assistant insights">
-          <div className="panelHeader">
-            <div>
-              <span className="sectionTag">AI layer</span>
-              <h2>Action-Focused Guidance</h2>
-              <p>{formatMoney(summary.monthlyIncomeTotal)} - {formatMoney(summary.monthlyExpenseTotal)} - {formatMoney(summary.monthlyCreditCardPaymentTotal)} = {formatMoney(summary.projectedRemainingBalance)}</p>
-            </div>
-            <Bot size={20} />
-          </div>
-          <AIInsightList insights={data.aiInsights} />
-        </section>
+            <section className="aiPanel" aria-label="AI assistant insights">
+              <div className="panelHeader">
+                <div>
+                  <span className="sectionTag">AI layer</span>
+                  <h2>Action-Focused Guidance</h2>
+                  <p>{formatMoney(summary.monthlyIncomeTotal)} - {formatMoney(summary.monthlyExpenseTotal)} - {formatMoney(summary.monthlyCreditCardPaymentTotal)} = {formatMoney(summary.projectedRemainingBalance)}</p>
+                </div>
+                <Bot size={20} />
+              </div>
+              <AIInsightList insights={data.aiInsights} />
+            </section>
+          </>
+        ) : null}
 
+        {activeTab === "expenses" ? (
+          <>
         <section className="filterPanel" aria-label="Expense filters">
           <div className="filterTitle">
             <Filter size={18} />
@@ -836,9 +873,12 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
             </table>
           </div>
         </section>
+          </>
+        ) : null}
 
         <div className="dashboardGrid">
-          <section className="panel" id="income">
+          {activeTab === "income" ? (
+          <section className="panel span2" id="income">
             <div className="panelHeader">
               <div><span className="sectionTag">Income</span><h2>Income Streams</h2><p>Total selected month: {formatMoney(summary.monthlyIncomeTotal)}</p></div>
             </div>
@@ -854,8 +894,10 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
               {data.incomeStreams.length === 0 ? <p className="empty block">No income streams yet.</p> : null}
             </div>
           </section>
+          ) : null}
 
-          <section className="panel" id="cards">
+          {activeTab === "cards" ? (
+          <section className="panel span2" id="cards">
             <div className="panelHeader">
               <div><span className="sectionTag">Credit cards</span><h2>Bill Due Table</h2><p>Total due this month: {formatMoney(summary.monthlyCreditCardPaymentTotal)}</p></div>
             </div>
@@ -871,7 +913,9 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
               {data.creditCardBills.length === 0 ? <p className="empty block">No credit card bills yet.</p> : null}
             </div>
           </section>
+          ) : null}
 
+          {activeTab === "overview" ? (
           <section className="panel" id="subscriptions">
             <div className="panelHeader">
               <div><span className="sectionTag">Subscriptions</span><h2>Subscription Watch</h2><p>Monthly total: {formatMoney(summary.monthlySubscriptionTotal)}</p></div>
@@ -888,15 +932,16 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
               {data.subscriptions.length === 0 ? <p className="empty block">No subscriptions yet.</p> : null}
             </div>
           </section>
+          ) : null}
 
-          <section className="panel" id="reminders">
+          {activeTab === "reminders" ? (
+          <section className="panel span2" id="reminders">
             <div className="panelHeader">
-              <div><span className="sectionTag">Productivity</span><h2>Reminders & Todos</h2><p>{summary.overdueReminders.length} overdue reminders</p></div>
+              <div><span className="sectionTag">Productivity</span><h2>Reminders</h2><p>{summary.overdueReminders.length} overdue reminders</p></div>
             </div>
             <details className="addBlock"><summary><Plus size={16} /> Add reminder</summary><ReminderEditor /></details>
-            <details className="addBlock"><summary><Plus size={16} /> Add todo</summary><TodoEditor /></details>
             <div className="compactList">
-              {[...data.reminders].slice(0, 8).map((row) => (
+              {data.reminders.map((row) => (
                 <article className="listItem" key={row.id}>
                   <div><strong>{row.title}</strong><p>{formatDateTime(row.due_at)} - {row.source}</p></div>
                   <div className="itemActions"><Badge tone={row.priority === "Urgent" ? "urgent" : row.priority === "High" ? "warning" : "watch"}>{row.status}</Badge></div>
@@ -904,18 +949,13 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                   <RowActions id={row.id} deleteAction={removeReminder}><ReminderEditor row={row} /></RowActions>
                 </article>
               ))}
-              {data.todos.slice(0, 8).map((row) => (
-                <article className="listItem" key={row.id}>
-                  <div><strong>{row.task}</strong><p>{row.due_at ? formatDateTime(row.due_at) : "No due date"} - {row.source}</p></div>
-                  <div className="itemActions"><Badge>{row.status}</Badge></div>
-                  <RowActions id={row.id} deleteAction={removeTodo}><TodoEditor row={row} /></RowActions>
-                </article>
-              ))}
-              {!data.reminders.length && !data.todos.length ? <p className="empty block">No reminders or todos yet.</p> : null}
+              {!data.reminders.length ? <p className="empty block">No reminders yet.</p> : null}
             </div>
           </section>
+          ) : null}
 
-          <section className="panel" id="notes">
+          {activeTab === "notes" ? (
+          <section className="panel span2" id="notes">
             <div className="panelHeader">
               <div><span className="sectionTag">Notes</span><h2>Notes & Linked Context</h2><p>Prepared for dashboard and Telegram-created notes.</p></div>
             </div>
@@ -931,7 +971,9 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
               {data.notes.length === 0 ? <p className="empty block">No notes yet.</p> : null}
             </div>
           </section>
+          ) : null}
 
+          {activeTab === "activities" ? (
           <section className="panel span2" id="activities">
             <div className="panelHeader">
               <div><span className="sectionTag">Activity</span><h2>Activity Feed</h2><p>Clean audit trail for edits, reminders, AI warnings, and Telegram actions.</p></div>
@@ -961,10 +1003,12 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
               </div>
             </details>
           </section>
+          ) : null}
 
+          {activeTab === "tasks" ? (
           <section className="panel span2">
             <div className="panelHeader">
-              <div><span className="sectionTag">Existing tools</span><h2>Budget Limits & Open Tasks</h2><p>Preserved from the previous dashboard.</p></div>
+              <div><span className="sectionTag">Tasks</span><h2>Todos, Budget Limits & Open Tasks</h2><p>Work queue, quick budget limits, and legacy open tasks.</p></div>
               <ListChecks size={18} />
             </div>
             <div className="utilityGrid">
@@ -974,16 +1018,25 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                 <button className="primaryButton" type="submit">Save budget</button>
               </form>
               <div className="compactList">
+                <details className="addBlock taskAdd"><summary><Plus size={16} /> Add todo</summary><TodoEditor /></details>
+                {data.todos.map((row) => (
+                  <article className="listItem" key={row.id}>
+                    <div><strong>{row.task}</strong><p>{row.due_at ? formatDateTime(row.due_at) : "No due date"} - {row.source}</p></div>
+                    <div className="itemActions"><Badge>{row.status}</Badge></div>
+                    <RowActions id={row.id} deleteAction={removeTodo}><TodoEditor row={row} /></RowActions>
+                  </article>
+                ))}
                 {data.tasks.map((task) => (
                   <article className="listItem" key={task.id}>
                     <div><strong>{task.task}</strong><p>{statusLabel(task.status)} - {priorityLabel(task.priority)}{task.due_at ? ` - ${formatDateTime(task.due_at)}` : ""}</p></div>
                     <form action={completeTask}><input type="hidden" name="id" value={task.id} /><button className="iconButton" type="submit" title="Mark done"><Check size={16} /></button></form>
                   </article>
                 ))}
-                {data.tasks.length === 0 ? <p className="empty block">No open legacy tasks.</p> : null}
+                {!data.todos.length && data.tasks.length === 0 ? <p className="empty block">No tasks yet.</p> : null}
               </div>
             </div>
           </section>
+          ) : null}
         </div>
       </section>
     </main>

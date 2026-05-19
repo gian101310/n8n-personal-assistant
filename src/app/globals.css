@@ -1,21 +1,23 @@
 :root {
   color-scheme: light;
-  --bg: #f4f0ea;
-  --surface: #fffdf8;
-  --surface-2: #f8f5ef;
-  --surface-3: #eee7dc;
-  --ink: #1e2523;
-  --muted: #66706d;
-  --soft: #818983;
-  --line: rgba(50, 55, 48, 0.14);
-  --line-strong: rgba(50, 55, 48, 0.24);
-  --accent: #087f68;
+  --bg: #eef3f7;
+  --surface: #ffffff;
+  --surface-2: #f7fafc;
+  --surface-3: #edf4f6;
+  --ink: #14211f;
+  --muted: #62706f;
+  --soft: #7a8988;
+  --line: rgba(31, 48, 52, 0.13);
+  --line-strong: rgba(31, 48, 52, 0.24);
+  --accent: #047c68;
   --accent-2: #245c9c;
-  --amber: #a86608;
-  --danger: #b42318;
-  --success: #1d7a46;
-  --watch: #7c5b12;
-  --shadow: 0 18px 48px rgba(45, 36, 26, 0.11);
+  --accent-3: #7c3aed;
+  --amber: #b46600;
+  --danger: #c7352a;
+  --success: #168148;
+  --watch: #8a6110;
+  --shadow: 0 18px 42px rgba(27, 46, 54, 0.1);
+  --shadow-strong: 0 24px 60px rgba(20, 33, 31, 0.16);
 }
 
 * {
@@ -24,14 +26,18 @@
 
 html {
   min-width: 320px;
+  max-width: 100%;
   scroll-behavior: smooth;
+  overflow-x: hidden;
 }
 
 body {
   margin: 0;
+  max-width: 100%;
+  overflow-x: hidden;
   background:
-    linear-gradient(180deg, rgba(8, 127, 104, 0.08), transparent 280px),
-    linear-gradient(90deg, rgba(168, 102, 8, 0.07), transparent 420px),
+    linear-gradient(135deg, rgba(4, 124, 104, 0.12), transparent 360px),
+    linear-gradient(215deg, rgba(36, 92, 156, 0.11), transparent 460px),
     var(--bg);
   color: var(--ink);
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -69,9 +75,10 @@ p {
 
 h1 {
   max-width: 860px;
-  font-size: 38px;
+  font-size: 42px;
   line-height: 1.06;
   letter-spacing: 0;
+  overflow-wrap: anywhere;
 }
 
 h2 {
@@ -83,6 +90,7 @@ h2 {
   display: grid;
   grid-template-columns: 252px minmax(0, 1fr);
   min-height: 100vh;
+  min-width: 0;
 }
 
 .sidebar {
@@ -93,8 +101,10 @@ h2 {
   height: 100vh;
   padding: 18px 14px;
   border-right: 1px solid var(--line);
-  background: rgba(255, 253, 248, 0.92);
+  background: rgba(255, 255, 255, 0.9);
   backdrop-filter: blur(18px);
+  min-width: 0;
+  overflow: hidden;
 }
 
 .brandBlock,
@@ -129,7 +139,7 @@ h2 {
   place-items: center;
   border-radius: 8px;
   color: #fff;
-  background: linear-gradient(145deg, var(--accent), #42a58e);
+  background: linear-gradient(145deg, var(--accent), #2ab7a0);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28);
 }
 
@@ -166,6 +176,9 @@ td small,
 .sideNav {
   display: grid;
   gap: 5px;
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
 }
 
 .sideNav a,
@@ -182,10 +195,16 @@ td small,
 }
 
 .sideNav a:hover,
-.logoutButton:hover {
+.logoutButton:hover,
+.sideNav a.active {
   color: var(--ink);
   border-color: var(--line-strong);
-  background: rgba(8, 127, 104, 0.07);
+  background: rgba(4, 124, 104, 0.09);
+}
+
+.sideNav a.active {
+  color: var(--accent);
+  font-weight: 850;
 }
 
 .logoutButton {
@@ -194,8 +213,11 @@ td small,
 }
 
 .dashboardShell {
-  width: min(1540px, 100%);
+  width: 100%;
+  max-width: 1540px;
+  min-width: 0;
   padding: 28px;
+  overflow: hidden;
 }
 
 .heroBar {
@@ -203,7 +225,18 @@ td small,
   align-items: flex-start;
   justify-content: space-between;
   gap: 20px;
-  margin-bottom: 18px;
+  margin-bottom: 14px;
+  padding: 22px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(4, 124, 104, 0.1), rgba(36, 92, 156, 0.08)),
+    rgba(255, 255, 255, 0.86);
+  box-shadow: var(--shadow);
+}
+
+.heroBar > div {
+  min-width: 0;
 }
 
 .eyebrow {
@@ -241,9 +274,58 @@ td small,
   border: 1px solid var(--line);
   border-radius: 8px;
   color: var(--muted);
-  background: rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.72);
   font-size: 12px;
   font-weight: 750;
+}
+
+.tabRail {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+  padding: 8px;
+  overflow-x: auto;
+  max-width: 100%;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 10px 28px rgba(20, 33, 31, 0.08);
+  backdrop-filter: blur(16px);
+}
+
+.tabRail a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  min-height: 40px;
+  padding: 0 13px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 850;
+  text-decoration: none;
+  transition: color 160ms ease, background 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.tabRail a:hover,
+.tabRail a.active {
+  color: var(--ink);
+  border-color: rgba(4, 124, 104, 0.2);
+  background: rgba(4, 124, 104, 0.08);
+}
+
+.tabRail a.active {
+  color: #fff;
+  border-color: transparent;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  box-shadow: 0 10px 20px rgba(4, 124, 104, 0.18);
 }
 
 .heroActions {
@@ -305,9 +387,9 @@ td small,
 
 .metricsGrid {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 12px;
-  margin-bottom: 14px;
+  grid-template-columns: repeat(6, minmax(150px, 1fr));
+  gap: 14px;
+  margin-bottom: 16px;
 }
 
 .metric,
@@ -322,11 +404,40 @@ td small,
 }
 
 .metric {
+  position: relative;
   display: flex;
   gap: 12px;
-  min-height: 116px;
-  padding: 15px;
+  min-height: 128px;
+  padding: 16px;
   overflow: hidden;
+  isolation: isolate;
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+
+.metric::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(135deg, rgba(4, 124, 104, 0.11), transparent 54%);
+}
+
+.metric::after {
+  content: "";
+  position: absolute;
+  right: 14px;
+  bottom: 12px;
+  width: 64px;
+  height: 64px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(36, 92, 156, 0.12), rgba(124, 58, 237, 0.1));
+  transform: rotate(10deg);
+  z-index: -1;
+}
+
+.metric:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-strong);
 }
 
 .metric.good {
@@ -342,8 +453,8 @@ td small,
 }
 
 .metricIcon {
-  width: 38px;
-  height: 38px;
+  width: 42px;
+  height: 42px;
   flex: 0 0 auto;
 }
 
@@ -356,8 +467,8 @@ td small,
 
 .metric strong {
   display: block;
-  margin: 7px 0 4px;
-  font-size: 21px;
+  margin: 9px 0 5px;
+  font-size: 24px;
   line-height: 1.05;
   overflow-wrap: anywhere;
 }
@@ -417,7 +528,7 @@ td small,
   display: flex;
   justify-content: space-between;
   align-items: center;
-  min-height: 68px;
+  min-height: 74px;
   gap: 12px;
   padding: 0 18px;
   border-bottom: 1px solid var(--line);
@@ -471,7 +582,7 @@ td small,
 
 .filterPanel {
   display: grid;
-  grid-template-columns: minmax(190px, 0.26fr) 1fr;
+  grid-template-columns: minmax(210px, 0.24fr) minmax(0, 1fr);
   gap: 16px;
   align-items: end;
   padding: 16px;
@@ -501,7 +612,7 @@ td small,
 }
 
 .filterGrid {
-  grid-template-columns: 120px 140px 140px 1fr minmax(220px, 1.2fr) auto auto;
+  grid-template-columns: minmax(120px, 0.8fr) minmax(135px, 0.8fr) minmax(135px, 0.8fr) minmax(150px, 1fr) minmax(220px, 1.4fr) auto auto;
 }
 
 .editGrid {
@@ -614,6 +725,7 @@ td small,
 
 .tableWrap {
   overflow-x: auto;
+  max-width: 100%;
 }
 
 table {
@@ -631,6 +743,11 @@ td {
   font-size: 13px;
   vertical-align: top;
   white-space: nowrap;
+}
+
+td:nth-child(2),
+td:nth-child(7) {
+  white-space: normal;
 }
 
 th {
@@ -790,9 +907,9 @@ td small {
 
 .visualGrid {
   display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
-  gap: 14px;
-  padding: 14px;
+  grid-template-columns: minmax(0, 1fr) minmax(340px, 0.78fr);
+  gap: 16px;
+  padding: 16px;
 }
 
 .kpiBars {
@@ -803,7 +920,7 @@ td small {
 .kpiBar {
   display: grid;
   gap: 7px;
-  padding: 11px;
+  padding: 13px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface-2);
@@ -812,7 +929,13 @@ td small {
 .kpiBar div:first-child {
   display: flex;
   justify-content: space-between;
+  align-items: baseline;
   gap: 12px;
+}
+
+.kpiBar strong,
+.kpiBar span {
+  overflow-wrap: anywhere;
 }
 
 .kpiBar span {
@@ -857,7 +980,7 @@ td small {
 
 .donutWrap {
   display: grid;
-  grid-template-columns: 190px minmax(0, 1fr);
+  grid-template-columns: minmax(160px, 190px) minmax(0, 1fr);
   gap: 14px;
   align-items: center;
   padding: 12px;
@@ -870,7 +993,7 @@ td small {
   position: relative;
   display: grid;
   place-items: center;
-  width: 190px;
+  width: min(190px, 100%);
   aspect-ratio: 1;
   border-radius: 999px;
 }
@@ -960,6 +1083,19 @@ td small {
   background: var(--surface-2);
 }
 
+.listItem > div:first-child,
+.logItem > div:first-child {
+  min-width: 0;
+}
+
+.listItem strong,
+.listItem p,
+.listItem small,
+.logItem strong,
+.logItem p {
+  overflow-wrap: anywhere;
+}
+
 .listItem p,
 .listItem small,
 .logItem p,
@@ -1005,9 +1141,15 @@ td small {
 
 .utilityGrid {
   display: grid;
-  grid-template-columns: minmax(260px, 0.34fr) 1fr;
+  grid-template-columns: minmax(260px, 0.32fr) minmax(0, 1fr);
   gap: 12px;
   padding: 12px;
+}
+
+.taskAdd {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
 }
 
 .budgetForm {
@@ -1104,6 +1246,7 @@ td small {
   .sideNav {
     display: flex;
     overflow-x: auto;
+    max-width: 100%;
     padding-bottom: 4px;
   }
 
@@ -1128,6 +1271,11 @@ td small {
 
   .heroBar {
     flex-direction: column;
+    align-items: stretch;
+  }
+
+  .heroActions {
+    justify-content: flex-start;
   }
 
   .filterPanel {
@@ -1150,6 +1298,21 @@ td small {
 
   h1 {
     font-size: 26px;
+    line-height: 1.12;
+  }
+
+  .heroBar {
+    padding: 18px;
+  }
+
+  .heroStatus span {
+    max-width: 100%;
+  }
+
+  .refreshButton,
+  .primaryButton,
+  .ghostButton {
+    max-width: 100%;
   }
 
   .metricsGrid,
